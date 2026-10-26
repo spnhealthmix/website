@@ -30,7 +30,9 @@ import type {
 
 function getDeps() {
   const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL is not configured");
+  if (!databaseUrl) {
+    return { db: null, imageBaseUrl: process.env.R2_PUBLIC_BASE_URL };
+  }
   const db = getDb(databaseUrl);
   const imageBaseUrl = process.env.R2_PUBLIC_BASE_URL;
   return { db, imageBaseUrl };
@@ -38,6 +40,9 @@ function getDeps() {
 
 export const fetchAllActiveCategories = cache(async (): Promise<CategoriesResponse> => {
   const { db, imageBaseUrl } = getDeps();
+  if (!db) {
+    return { categories: [] };
+  }
   try {
     const rows = await db
       .select({
@@ -75,6 +80,7 @@ export const fetchCategories = cache(async (): Promise<CategoriesResponse> => {
 
 export const fetchCategoryBySlug = cache(async (slug: string): Promise<CategoryCard | null> => {
   const { db, imageBaseUrl } = getDeps();
+  if (!db) return null;
   const [row] = await db
     .select({
       id: categories.id,
@@ -101,6 +107,16 @@ export const fetchCategoryBySlug = cache(async (slug: string): Promise<CategoryC
 
 export async function fetchProducts(query: ProductQuery): Promise<ProductsResponse> {
   const { db, imageBaseUrl } = getDeps();
+  if (!db) {
+    return {
+      products: [],
+      total: 0,
+      limit: query.limit ?? 20,
+      offset: query.offset ?? 0,
+      hasMore: false,
+      sort: query.sort ?? "featured",
+    };
+  }
 
   const q: PublicProductQuery = {
     category: query.category,
@@ -131,6 +147,9 @@ export async function fetchProducts(query: ProductQuery): Promise<ProductsRespon
 
 export const fetchProduct = cache(async (slug: string): Promise<ProductDetail> => {
   const { db, imageBaseUrl } = getDeps();
+  if (!db) {
+    throw new Error("Database not connected");
+  }
   return getPublicProduct(db, slug, { imageBaseUrl }) as Promise<ProductDetail>;
 });
 
@@ -156,6 +175,9 @@ export const fetchBestsellerProducts = cache(async (): Promise<{
   all: BestsellerProduct[];
 }> => {
   const { db, imageBaseUrl } = getDeps();
+  if (!db) {
+    return { featured: [], all: [] };
+  }
   try {
     const prods = await db
       .select({
