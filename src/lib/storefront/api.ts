@@ -155,6 +155,13 @@ export const fetchProduct = cache(async (slug: string): Promise<ProductDetail> =
 
 export const fetchProductRatingSummary = cache(async (productId: string) => {
   const { db } = getDeps();
+  if (!db) {
+    return {
+      averageRating: 0,
+      totalReviews: 0,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    };
+  }
   const { getProductRatingSummary } = await import("@/lib/reviews/service");
   return getProductRatingSummary(db, productId);
 });
