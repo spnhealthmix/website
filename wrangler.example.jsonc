@@ -1,0 +1,21 @@
+// Example Cloudflare Worker configuration. Copy to wrangler.jsonc and adjust names.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "spn-health-mix",
+  "main": "worker.ts", // custom entry: re-exports OpenNext's fetch and adds `scheduled` (see src/worker/scheduled.ts)
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Product and category images. Serve the bucket publicly through a custom domain
+  // (e.g. img.spnhealthmix.in) and set R2_PUBLIC_BASE_URL to it.
+  "r2_buckets": [{ "binding": "SPN_IMAGES", "bucket_name": "spn-images" }],
+
+  // Cancels unpaid orders that have expired (5 minute grace is applied in code).
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  "vars": {
+    "APP_ORIGINS": "https://spnhealthmix.in",
+  },
+  // Secrets (wrangler secret put ...): DATABASE_URL,
+  // RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SMTP_PASSWORD
+}
