@@ -263,10 +263,15 @@ export function ProductForm() {
               <input
                 id="prod-sort"
                 type="number"
+                min="0"
                 value={sortOrder}
                 onChange={(e) => setSortOrder(Number(e.target.value))}
+                placeholder="0 (Auto-adds to end of category)"
                 className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-warm)]/40 focus:outline-none focus:border-[var(--color-brand-primary)] text-xs"
               />
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                Leave as 0 to automatically place at the end of this category.
+              </p>
             </div>
 
             <div className="pt-4">

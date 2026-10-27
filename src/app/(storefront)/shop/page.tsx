@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 16;
 
 interface ShopPageProps {
   searchParams: Promise<{

@@ -217,6 +217,20 @@ export async function createProduct(db: AnyDb, adminId: string, input: ProductIn
       const id = await db.transaction(async (tx) => {
         await assertCategory(tx, input.categoryId);
         const slug = input.slug ? base : await freeSlug(tx, products, base);
+
+        // Determine sortOrder: If not explicitly specified (> 0), automatically assign
+        // the next highest order in this category so the new product appears last.
+        let finalSortOrder = input.sortOrder;
+        if (finalSortOrder === undefined || finalSortOrder === 0) {
+          const [{ maxOrder }] = await tx
+            .select({
+              maxOrder: sql<number>`coalesce(max(${products.sortOrder}), -1)::int`,
+            })
+            .from(products)
+            .where(eq(products.categoryId, input.categoryId));
+          finalSortOrder = maxOrder + 1;
+        }
+
         const [p] = await tx
           .insert(products)
           .values({
@@ -224,10 +238,10 @@ export async function createProduct(db: AnyDb, adminId: string, input: ProductIn
             shortDescription: input.shortDescription ?? null, description: input.description ?? null,
             ingredients: input.ingredients ?? null, usage: input.usage ?? null,
             isActive: input.isActive ?? true,
-            isFeatured: input.isFeatured ?? false, sortOrder: input.sortOrder ?? 0,
+            isFeatured: input.isFeatured ?? false, sortOrder: finalSortOrder,
           })
           .returning({ id: products.id });
-        await writeAudit(tx, { actorProfileId: adminId, action: "product.created", entityType: "product", entityId: p.id, details: { name: input.name, slug, categoryId: input.categoryId } });
+        await writeAudit(tx, { actorProfileId: adminId, action: "product.created", entityType: "product", entityId: p.id, details: { name: input.name, slug, categoryId: input.categoryId, sortOrder: finalSortOrder } });
         return p.id;
       });
       return getProduct(db, id, o);

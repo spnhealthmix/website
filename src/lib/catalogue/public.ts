@@ -167,8 +167,14 @@ function orderFor(
         desc(products.isFeatured), asc(products.name), asc(products.id),
       ];
     }
-    default: // "featured": featured first, then the shop's own category/product ordering
-      return [desc(products.isFeatured), asc(categories.sortOrder), asc(products.sortOrder), asc(products.name), asc(products.id)];
+    default: // "featured": category/product ordering with newly appended products staying at the end
+      return [
+        desc(products.isFeatured),
+        asc(categories.sortOrder),
+        asc(products.sortOrder),
+        asc(products.createdAt),
+        asc(products.id),
+      ];
   }
 }
 

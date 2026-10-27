@@ -14,7 +14,7 @@ import type { SortOption } from "@/lib/storefront/types";
 
 export const revalidate = 60;
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 16;
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
