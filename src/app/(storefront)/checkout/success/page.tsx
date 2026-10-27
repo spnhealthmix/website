@@ -80,8 +80,8 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
         .where(eq(orders.id, orderId));
 
       if (order) {
-        // Strict ownership check: if session exists, verify profileId matches
-        if (session && order.profileId !== session.profile.id) {
+        // Strict ownership check: authenticated session must exist and match order profileId
+        if (!session || order.profileId !== session.profile.id) {
           orderNotFound = true;
           isAuthorized = false;
         } else {
@@ -128,14 +128,14 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
             imageUrl: item.productId ? imagesMap.get(item.productId) ?? null : null,
           }));
         }
-      } else if (!orderNumber) {
+      } else {
         orderNotFound = true;
       }
     } catch (err) {
       console.error("Error reading order in CheckoutSuccessPage:", err);
       orderNotFound = true;
     }
-  } else if (!orderNumber) {
+  } else {
     orderNotFound = true;
   }
 

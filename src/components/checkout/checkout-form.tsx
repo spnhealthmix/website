@@ -39,6 +39,7 @@ export function CheckoutForm() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [customerNote, setCustomerNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [priceChangeWarning, setPriceChangeWarning] = useState<string | null>(null);
 
@@ -155,7 +156,28 @@ export function CheckoutForm() {
     );
   }
 
+  if (isPaymentSuccess) {
+    return (
+      <div className="py-16 text-center text-[var(--color-text-muted)] font-[family-name:var(--font-body)]">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-brand-primary)] border-t-transparent" />
+        <p className="mt-3 text-base font-medium text-[var(--color-text-primary)]">
+          Payment confirmed! Redirecting to your order confirmation...
+        </p>
+      </div>
+    );
+  }
+
   if (!cart || cart.items.length === 0) {
+    if (isSubmitting) {
+      return (
+        <div className="py-16 text-center text-[var(--color-text-muted)] font-[family-name:var(--font-body)]">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-brand-primary)] border-t-transparent" />
+          <p className="mt-3 text-sm font-medium text-[var(--color-text-primary)]">
+            Processing your order securely...
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-8 text-center sm:p-12 shadow-[var(--shadow-xs)]">
         <h2 className="font-[family-name:var(--font-heading)] text-2xl text-[var(--color-text-primary)]">
@@ -297,7 +319,7 @@ export function CheckoutForm() {
             const verifyData = await verifyRes.json();
 
             if (!verifyRes.ok || !verifyData.verified) {
-              router.push(
+              router.replace(
                 `/checkout/failure?orderId=${encodeURIComponent(
                   orderId
                 )}&error=${encodeURIComponent(
@@ -307,16 +329,28 @@ export function CheckoutForm() {
               return;
             }
 
-            // Successfully verified! Reconcile cart and navigate to success
-            await refreshCart();
-            router.push(
-              `/checkout/success?orderId=${encodeURIComponent(
-                orderId
-              )}&orderNumber=${encodeURIComponent(orderNumber)}`
+            // Successfully verified! Mark payment success to prevent empty cart UI flash
+            setIsPaymentSuccess(true);
+            const confirmedOrderId = verifyData.orderId || orderId;
+            const confirmedOrderNumber = verifyData.orderNumber || orderNumber;
+            const isPending = Boolean(
+              verifyData.awaitingConfirmation || verifyData.status === "pending_payment"
             );
+
+            // Navigate directly to the existing order confirmation / details page
+            router.replace(
+              `/checkout/success?orderId=${encodeURIComponent(
+                confirmedOrderId
+              )}&orderNumber=${encodeURIComponent(confirmedOrderNumber)}${
+                isPending ? "&pending=true" : ""
+              }`
+            );
+
+            // Reconcile client cart in background without blocking immediate navigation
+            void refreshCart();
           } catch (verifyErr) {
             console.error("Payment verification network error:", verifyErr);
-            router.push(
+            router.replace(
               `/checkout/failure?orderId=${encodeURIComponent(
                 orderId
               )}&pending=true`
