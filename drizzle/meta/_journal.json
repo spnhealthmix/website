@@ -36,6 +36,13 @@
       "when": 1792386000000,
       "tag": "0004_drop_packaging_design_version",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793098180977,
+      "tag": "0005_bright_brood",
+      "breakpoints": true
     }
   ]
 }

@@ -42,6 +42,8 @@ import {
   checkReviewEligibility, deleteOwnReview, listCustomerReviews, submitReview, updateOwnReview,
 } from "../reviews/service";
 import { ApiError, errorBody, isUniqueViolation, json, readJson, toResponse, validate } from "./http";
+import { checkEndpointRateLimit } from "../security/rate-limit";
+import { assertAdminOriginAllowed, assertCustomerOriginAllowed } from "../security/origin";
 
 
 export type ApiDeps = {
@@ -75,11 +77,10 @@ export function secured(deps: ApiDeps, req: Request, opts: { mutating: boolean; 
   const log = deps.log ?? ((m, e) => console.error(m, e));
   return (async () => {
     try {
-      if ((opts.mutating || opts.requireOrigin) && deps.allowedOrigins) {
-        const origin = req.headers.get("origin");
-        if (opts.requireOrigin ? (!origin || !deps.allowedOrigins.includes(origin)) : (origin && !deps.allowedOrigins.includes(origin))) {
-          throw new ApiError(403, "FORBIDDEN_ORIGIN", "Request origin not allowed.");
-        }
+      if (opts.requireOrigin) {
+        assertAdminOriginAllowed(req, deps.allowedOrigins);
+      } else if (opts.mutating) {
+        assertCustomerOriginAllowed(req, deps.allowedOrigins);
       }
       return await deps.withDb(async (db) => {
         const user = await deps.authenticate(req, db);
@@ -417,6 +418,32 @@ export const postCartCoupon = (req: Request, deps: ApiDeps) => {
   return (async () => {
     try {
       return await deps.withDb(async (db) => {
+        const rateLimit = await checkEndpointRateLimit(req, {
+          endpoint: "cart_coupon",
+          ipLimit: { limit: 15, windowSeconds: 300 },
+          db,
+          now: (deps.now ?? (() => new Date()))(),
+        });
+
+        if (!rateLimit.allowed) {
+          if (rateLimit.reason === "limiter_unavailable") {
+            throw new ApiError(
+              503,
+              "SERVICE_UNAVAILABLE",
+              "Coupon validation is temporarily unavailable. Please try again shortly.",
+              {},
+              { "Retry-After": String(rateLimit.retryAfterSeconds) },
+            );
+          }
+          throw new ApiError(
+            429,
+            "RATE_LIMITED",
+            "Too many coupon attempts. Please try again later.",
+            {},
+            { "Retry-After": String(rateLimit.retryAfterSeconds) },
+          );
+        }
+
         const user = await deps.authenticate(req, db);
         const guestItems = extractGuestCartFromRequest(req);
         const body = validate(cartCouponSchema, await readJson(req));

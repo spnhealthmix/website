@@ -91,7 +91,18 @@ export default async function AboutPage() {
               </p>
 
               {/* Primary CTA Button */}
-              
+              <div className="flex justify-start">
+                <Link
+                  href="/shop"
+                  className="group inline-flex w-fit shrink-0 whitespace-nowrap justify-center items-center gap-2 font-[family-name:var(--font-body)] font-medium text-[14px] text-white bg-[#BF5330] hover:bg-[#8F3E20] px-6 py-3.5 rounded-full shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BF5330]"
+                >
+                  <span>Explore Our Products</span>
+                  <ArrowRight
+                    className="w-4 h-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+              </div>
             </div>
 
             {/* Right Food Photography */}
@@ -108,13 +119,13 @@ export default async function AboutPage() {
               </div>
             </div>
             <div>
-                <Link
+                {/* <Link
                   href="/shop"
                   className="group inline-flex justify-center items-center gap-2 font-[family-name:var(--font-body)] font-medium text-[14px] text-white bg-[#BF5330] hover:bg-[#8F3E20] px-7 py-3.5 rounded-full shadow-xs hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BF5330]"
                 >
                   <span>Explore Our Products</span>
                   <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
-                </Link>
+                </Link> */}
               </div>
           </div>
         </div>

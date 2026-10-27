@@ -1,6 +1,8 @@
 import { getTxDb } from "@/lib/db";
 import { createPasswordResetToken } from "@/lib/auth/password-reset";
 import { getEmailProvider } from "@/lib/email/provider";
+import { normalizeEmail } from "@/lib/auth/email";
+import { checkEndpointRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,37 @@ export async function POST(req: Request) {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       return Response.json({ error: "Database configuration missing." }, { status: 500 });
+    }
+
+    // Rate limiting: 10 per 1 hour per IP, 3 per 1 hour per target email
+    const rateLimit = await checkEndpointRateLimit(req, {
+      endpoint: "forgot_password",
+      ipLimit: { limit: 10, windowSeconds: 3600 },
+      idLimit: { identifier: normalizeEmail(email), limit: 3, windowSeconds: 3600 },
+      databaseUrl,
+    });
+
+    if (!rateLimit.allowed) {
+      if (rateLimit.reason === "limiter_unavailable") {
+        return Response.json(
+          { error: "Password reset service is temporarily unavailable. Please try again shortly." },
+          {
+            status: 503,
+            headers: {
+              "Retry-After": String(rateLimit.retryAfterSeconds),
+            },
+          }
+        );
+      }
+      return Response.json(
+        { error: "Too many password reset requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
     }
 
     const { db, close } = getTxDb(databaseUrl);

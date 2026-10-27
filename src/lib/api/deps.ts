@@ -3,6 +3,7 @@ import { razorpayGateway } from "@/lib/payments/razorpay";
 import type { PublicDeps } from "@/lib/api/public-api";
 import type { ApiDeps } from "@/lib/api/customer-api";
 import { customerAuthenticate } from "@/lib/customers/auth";
+import { normalizeAllowedOrigins } from "@/lib/security/origin";
 
 export function getPublicDeps(): PublicDeps {
   const databaseUrl = process.env.DATABASE_URL;
@@ -22,9 +23,7 @@ export function getCustomerDeps(req: Request): ApiDeps {
     throw new Error("DATABASE_URL environment variable is not defined.");
   }
 
-  const allowedOrigins = process.env.APP_ORIGINS
-    ? process.env.APP_ORIGINS.split(",").map((s) => s.trim())
-    : undefined;
+  const allowedOrigins = normalizeAllowedOrigins(process.env.APP_ORIGINS);
 
   const razorpayKeyId = (
     process.env.RAZORPAY_KEY_ID ??

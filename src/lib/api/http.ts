@@ -10,6 +10,7 @@ export class ApiError extends Error {
     public readonly code: string,
     message: string,
     public readonly extra: Record<string, unknown> = {},
+    public readonly headers?: HeadersInit,
   ) {
     super(message);
     this.name = "ApiError";
@@ -85,7 +86,7 @@ export function toResponse(
   log?: (msg: string, extra?: unknown) => void,
 ): Response {
   if (err instanceof ApiError) {
-    return json(err.status, errorBody(err.code, err.message, err.extra));
+    return json(err.status, errorBody(err.code, err.message, err.extra), err.headers);
   }
 
   if (err instanceof InvalidSignatureError) {

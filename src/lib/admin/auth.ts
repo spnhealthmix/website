@@ -30,9 +30,9 @@ export async function verifyAdminSession(req?: Request): Promise<AdminAuthResult
 
   if (req) {
     sessionToken = extractSessionTokenFromRequest(req);
-    // Non-production test-user bypass
+    // Support test harness strictly in automated test execution (Vitest)
     const testUser = req.headers.get("x-test-user");
-    if (testUser && process.env.NODE_ENV !== "production") {
+    if (testUser && process.env.NODE_ENV === "test") {
       const { getTxDb } = await import("@/lib/db");
       const { eq } = await import("drizzle-orm");
       const { profiles } = await import("@/lib/db/schema");

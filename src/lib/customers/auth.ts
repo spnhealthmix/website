@@ -4,13 +4,13 @@ import { extractSessionTokenFromRequest, validateSession } from "@/lib/auth/sess
 
 /**
  * Resolves the authenticated user from the request's secure session cookie.
- * In dev/test environments, supports the x-test-user header.
+ * In automated test execution (NODE_ENV === 'test'), supports the x-test-user header.
  * Never trusts client-provided profileId in bodies or query strings.
  */
 export async function customerAuthenticate(req: Request, db: AnyDb): Promise<AuthedUser | null> {
-  // Support test harness in non-production
+  // Support test harness strictly in automated test execution (Vitest)
   const testUser = req.headers.get("x-test-user");
-  if (testUser && process.env.NODE_ENV !== "production") {
+  if (testUser && process.env.NODE_ENV === "test") {
     const { ensureProfile } = await import("./profile");
     return ensureProfile(db, testUser, async () => ({
       email: `${testUser}@example.com`,

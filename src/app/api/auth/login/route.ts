@@ -8,6 +8,7 @@ import {
   mergeGuestCartIntoUser,
   serializeClearGuestCartCookie,
 } from "@/lib/cart/guest-cart";
+import { checkEndpointRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,37 @@ export async function POST(req: Request) {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     return Response.json({ error: "Authentication is temporarily unavailable." }, { status: 503 });
+  }
+
+  // Rate limiting: 20 per 5 min per IP, 5 per 1 min per normalized account
+  const rateLimit = await checkEndpointRateLimit(req, {
+    endpoint: "customer_login",
+    ipLimit: { limit: 20, windowSeconds: 300 },
+    idLimit: { identifier: normalizeEmail(email), limit: 5, windowSeconds: 60 },
+    databaseUrl,
+  });
+
+  if (!rateLimit.allowed) {
+    if (rateLimit.reason === "limiter_unavailable") {
+      return Response.json(
+        { error: "Authentication is temporarily unavailable. Please try again shortly." },
+        {
+          status: 503,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
+    return Response.json(
+      { error: "Too many login attempts. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      }
+    );
   }
 
   try {

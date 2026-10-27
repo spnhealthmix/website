@@ -620,3 +620,19 @@ export const adminAuditLog = pgTable(
     index("audit_action_idx").on(t.action, t.createdAt),
   ],
 );
+
+/* --------------------------- Rate Limiting ------------------------------- */
+
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull().default(1),
+    resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("rate_limits_reset_at_idx").on(t.resetAt),
+  ],
+);

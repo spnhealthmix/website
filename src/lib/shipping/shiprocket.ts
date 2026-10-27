@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { ShippingProvider } from "./provider";
 import type {
   CancelShipmentResult,
@@ -383,7 +383,41 @@ export class ShiprocketShippingProvider implements ShippingProvider {
     if (!awb && !shipmentId) return null;
 
     const normalized = this.normalizeStatus(currentStatus);
-    const eventId = String(data.event_id || `${awb || shipmentId}_${normalized}_${Date.now()}`);
+
+    // Deterministic event key derivation (SPN-SEC-004):
+    // 1. If provider supplies an explicit event_id, use it.
+    // 2. Otherwise, construct a deterministic fingerprint from stable payload attributes:
+    //    - primary identifier (awb or shipmentId)
+    //    - normalized status
+    //    - scan timestamp / date
+    //    - scan location / activity
+    //    Never use Date.now() or random values, which defeat idempotency deduplication.
+    let eventId: string;
+    if (data.event_id) {
+      eventId = String(data.event_id);
+    } else {
+      const scanDate = data.scans?.[0]?.date || data.current_timestamp || data.updated_at || "";
+      const scanActivity = data.scans?.[0]?.activity || "";
+      const scanLocation = data.scans?.[0]?.location || data.current_city || "";
+      const statusId = data.current_status_id ? String(data.current_status_id) : "";
+
+      const rawFingerprint = [
+        awb || shipmentId,
+        normalized,
+        statusId,
+        scanDate,
+        scanActivity,
+        scanLocation,
+      ]
+        .filter(Boolean)
+        .join("_");
+
+      const hash = createHash("sha256").update(rawFingerprint).digest("hex").slice(0, 24);
+      eventId = `sr_${awb || shipmentId}_${normalized}_${hash}`;
+    }
+
+    const scanDateStr = data.scans?.[0]?.date || data.current_timestamp || data.updated_at;
+    const occurredAt = scanDateStr ? new Date(scanDateStr) : new Date();
 
     return {
       eventId,
@@ -396,7 +430,7 @@ export class ShiprocketShippingProvider implements ShippingProvider {
         status: normalized,
         description: data.scans?.[0]?.activity || `Status updated to ${normalized.replace("_", " ")}`,
         location: data.scans?.[0]?.location || data.current_city || null,
-        occurredAt: data.scans?.[0]?.date ? new Date(data.scans[0].date) : new Date(),
+        occurredAt,
       },
     };
   }

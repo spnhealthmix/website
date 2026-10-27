@@ -5,14 +5,13 @@ import { getTxDb } from "@/lib/db";
 import { r2Storage } from "@/lib/storage/storage";
 import { extractSessionTokenFromRequest, validateSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+import { normalizeAllowedOrigins } from "@/lib/security/origin";
 
 export const dynamic = "force-dynamic";
 
 function getDeps(req: Request): ApiDeps {
   const databaseUrl = process.env.DATABASE_URL!;
-  const allowedOrigins = process.env.APP_ORIGINS
-    ? process.env.APP_ORIGINS.split(",").map((s) => s.trim())
-    : undefined;
+  const allowedOrigins = normalizeAllowedOrigins(process.env.APP_ORIGINS);
 
   // Cloudflare R2 bucket binding or S3/compatible client fallback
   const r2Bucket = (process.env as any).SPN_IMAGES;

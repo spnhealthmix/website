@@ -3,6 +3,7 @@ import { profiles } from "@/lib/db/schema";
 import { normalizeEmail, profileEmailMatches } from "@/lib/auth/email";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, serializeSessionCookie } from "@/lib/auth/session";
+import { checkEndpointRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,37 @@ export async function POST(req: Request) {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       return Response.json({ error: "Database configuration missing." }, { status: 500 });
+    }
+
+    // Rate limiting: 10 per 15 min per IP, 5 per 15 min per admin account
+    const rateLimit = await checkEndpointRateLimit(req, {
+      endpoint: "admin_login",
+      ipLimit: { limit: 10, windowSeconds: 900 },
+      idLimit: { identifier: normalizedEmail, limit: 5, windowSeconds: 900 },
+      databaseUrl,
+    });
+
+    if (!rateLimit.allowed) {
+      if (rateLimit.reason === "limiter_unavailable") {
+        return Response.json(
+          { error: "Administrative sign in is temporarily unavailable. Please try again shortly." },
+          {
+            status: 503,
+            headers: {
+              "Retry-After": String(rateLimit.retryAfterSeconds),
+            },
+          }
+        );
+      }
+      return Response.json(
+        { error: "Too many administrative login attempts. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
     }
 
     const { db, close } = getTxDb(databaseUrl);

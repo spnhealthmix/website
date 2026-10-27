@@ -3,6 +3,7 @@ import { orders, shipmentTrackingEvents, shipments, webhookEvents } from "../db/
 import type { AnyDb } from "../orders/common";
 import { getShippingProvider } from "./provider";
 import { triggerOrderDeliveredEmail, triggerOrderOutForDeliveryEmail } from "../email/service";
+import { isUniqueViolation } from "../api/http";
 
 export type ShippingWebhookDeps = {
   providerId?: string;
@@ -59,9 +60,16 @@ export async function handleShippingWebhook(req: Request, deps: ShippingWebhookD
         eventType: parsed.status,
         payload: payload as any,
       });
-    } catch {
-      // Unique violation -> already processed this exact event
-      return json(200, { status: "duplicate", eventId: parsed.eventId });
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        // Unique violation -> already processed this exact event
+        return json(200, { status: "duplicate", eventId: parsed.eventId });
+      }
+      log("shipping webhook: database insert failed", {
+        eventId: parsed.eventId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return json(500, { error: "database_error" });
     }
 
     // Lookup shipment
@@ -122,10 +130,12 @@ export async function handleShippingWebhook(req: Request, deps: ShippingWebhookD
       );
     } else if (parsed.status === "delivered") {
       const [order] = await db.select().from(orders).where(eq(orders.id, shipmentRow.orderId));
-      if (order && order.status === "shipped") {
-        await db.update(orders).set({ status: "delivered" }).where(eq(orders.id, order.id));
+      if (order && order.status !== "delivered") {
+        if (order.status === "shipped") {
+          await db.update(orders).set({ status: "delivered" }).where(eq(orders.id, order.id));
+        }
+        triggerOrderDeliveredEmail(db, shipmentRow.orderId, parsed.event.occurredAt);
       }
-      triggerOrderDeliveredEmail(db, shipmentRow.orderId, parsed.event.occurredAt);
     }
 
     return json(200, { status: "processed", outcome: parsed.status });
