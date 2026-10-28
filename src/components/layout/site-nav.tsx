@@ -11,13 +11,6 @@ import { AccountDropdown } from "@/components/layout/account-dropdown";
 import { FloatingCartButton } from "@/components/layout/floating-cart-button";
 import type { CategoryCard } from "@/lib/storefront/types";
 
-const NAV_CATEGORIES = [
-  { name: "Health Mix Powders", slug: "health-mix-powders" },
-  { name: "Podi Varieties", slug: "podi-varieties" },
-  { name: "Masalas & Powders", slug: "masalas-and-powders" },
-  { name: "Snacks", slug: "snacks" },
-] as const;
-
 const MORE_LINKS = [
   { label: "Contact Support", href: "/contact" },
   { label: "Shipping Policy", href: "/shipping-policy" },
@@ -34,12 +27,8 @@ export function SiteNav({ categories }: SiteNavProps) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [catOpen, setCatOpen] = useState(false);
-  const [mobileCatOpen, setMobileCatOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const catButtonRef = useRef<HTMLButtonElement>(null);
-  const catMenuRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -62,38 +51,20 @@ export function SiteNav({ categories }: SiteNavProps) {
   // Close drawer and dropdowns on route change (bail out if already closed)
   useEffect(() => {
     setDrawerOpen((prev) => (prev ? false : prev));
-    setCatOpen((prev) => (prev ? false : prev));
-    setMobileCatOpen((prev) => (prev ? false : prev));
     setMoreOpen((prev) => (prev ? false : prev));
     setMobileMoreOpen((prev) => (prev ? false : prev));
   }, [pathname]);
 
-  // Close dropdowns on outside click or Escape
+  // Close dropdown on outside click or Escape
   useEffect(() => {
-    if (!catOpen && !moreOpen) return;
+    if (!moreOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (catOpen) {
-          setCatOpen(false);
-          catButtonRef.current?.focus();
-        }
-        if (moreOpen) {
-          setMoreOpen(false);
-          moreButtonRef.current?.focus();
-        }
+        setMoreOpen(false);
+        moreButtonRef.current?.focus();
       }
     };
     const onOutside = (e: MouseEvent) => {
-      if (
-        catOpen &&
-        catButtonRef.current &&
-        !catButtonRef.current.contains(e.target as Node) &&
-        catMenuRef.current &&
-        !catMenuRef.current.contains(e.target as Node)
-      ) {
-        setCatOpen(false);
-      }
-
       if (
         moreOpen &&
         moreButtonRef.current &&
@@ -110,7 +81,7 @@ export function SiteNav({ categories }: SiteNavProps) {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onOutside);
     };
-  }, [catOpen, moreOpen]);
+  }, [moreOpen]);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
@@ -125,7 +96,7 @@ export function SiteNav({ categories }: SiteNavProps) {
 
   const isHomeActive = pathname === "/";
   const isShopActive = pathname === "/shop";
-  const isCategoriesActive = pathname.startsWith("/shop/") || pathname.startsWith("/products");
+  const isComboOffersActive = pathname === "/combo-offers";
   const isAboutActive = pathname === "/about";
   const isMoreActive = MORE_LINKS.some((l) => pathname === l.href);
 
@@ -238,77 +209,17 @@ export function SiteNav({ categories }: SiteNavProps) {
               Shop
             </Link>
 
-            {/* Categories dropdown */}
-            <div className="relative shrink-0">
-              <button
-                ref={catButtonRef}
-                className={cn(
-                  "whitespace-nowrap inline-flex items-center gap-1 font-[family-name:var(--font-body)] text-[14px] xl:text-[15px] font-medium transition-colors hover:text-[var(--color-brand-primary)] py-2 px-1 rounded-[4px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]",
-                  isCategoriesActive || catOpen
-                    ? "text-[var(--color-brand-primary)] font-semibold"
-                    : "text-[var(--color-text-primary)]"
-                )}
-                aria-haspopup="menu"
-                aria-expanded={catOpen}
-                aria-controls="cat-dropdown"
-                onClick={() => {
-                  setCatOpen((o) => !o);
-                  setMoreOpen(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setCatOpen((o) => !o);
-                    setMoreOpen(false);
-                  }
-                }}
-              >
-                <span>Categories</span>
-                <ChevronDown
-                  className={cn(
-                    "h-3.5 w-3.5 text-[var(--color-text-muted)] transition-transform duration-200",
-                    catOpen && "rotate-180 text-[var(--color-brand-primary)]"
-                  )}
-                  aria-hidden
-                />
-              </button>
-
-              {/* Vertical dropdown menu (top to bottom) */}
-              <div
-                id="cat-dropdown"
-                ref={catMenuRef}
-                className={cn(
-                  "absolute top-full left-0 mt-1 w-60 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-[12px] shadow-[var(--shadow-md)] transition-all duration-200 origin-top-left z-50",
-                  catOpen
-                    ? "opacity-100 visible translate-y-0"
-                    : "opacity-0 invisible -translate-y-2 pointer-events-none"
-                )}
-                role="menu"
-              >
-                <div className="py-2 flex flex-col">
-                  {NAV_CATEGORIES.map((cat) => {
-                    const isItemActive = pathname === `/shop/${cat.slug}`;
-                    return (
-                      <Link
-                        key={cat.slug}
-                        href={`/shop/${cat.slug}`}
-                        prefetch={false}
-                        className={cn(
-                          "flex items-center px-4 py-2.5 mx-1.5 rounded-[8px] text-sm font-[family-name:var(--font-body)] transition-colors",
-                          isItemActive
-                            ? "bg-[var(--color-surface-sunken)] text-[var(--color-brand-primary)] font-semibold"
-                            : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-brand-primary)]"
-                        )}
-                        role="menuitem"
-                        onClick={() => setCatOpen(false)}
-                      >
-                        <span className="font-medium">{cat.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/combo-offers"
+              className={cn(
+                "whitespace-nowrap font-[family-name:var(--font-body)] text-[14px] xl:text-[15px] font-medium transition-colors hover:text-[var(--color-brand-primary)] rounded-[4px] px-1 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand-primary)]",
+                isComboOffersActive
+                  ? "text-[var(--color-brand-primary)] font-semibold"
+                  : "text-[var(--color-text-primary)]"
+              )}
+            >
+              Combo Offers
+            </Link>
 
             {/* About Us link */}
             <Link
@@ -338,13 +249,11 @@ export function SiteNav({ categories }: SiteNavProps) {
                 aria-controls="more-dropdown"
                 onClick={() => {
                   setMoreOpen((o) => !o);
-                  setCatOpen(false);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     setMoreOpen((o) => !o);
-                    setCatOpen(false);
                   }
                 }}
               >
@@ -546,57 +455,19 @@ export function SiteNav({ categories }: SiteNavProps) {
             Shop
           </Link>
 
-          {/* Expandable Categories */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setMobileCatOpen((o) => !o)}
-              className={cn(
-                "w-full flex items-center justify-between px-5 py-3 text-base font-[family-name:var(--font-body)] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-brand-primary)]",
-                isCategoriesActive
-                  ? "text-[var(--color-brand-primary)] font-semibold"
-                  : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-brand-primary)]"
-              )}
-              aria-expanded={mobileCatOpen}
-              aria-controls="mobile-cat-sublist"
-            >
-              <span>Categories</span>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200",
-                  mobileCatOpen && "rotate-180 text-[var(--color-brand-primary)]"
-                )}
-                aria-hidden
-              />
-            </button>
-
-            {mobileCatOpen && (
-              <div
-                id="mobile-cat-sublist"
-                className="bg-[var(--color-surface-sunken)]/60 py-1.5 border-y border-[var(--color-border)]/60"
-              >
-                {NAV_CATEGORIES.map((cat) => {
-                  const isItemActive = pathname === `/shop/${cat.slug}`;
-                  return (
-                    <Link
-                      key={cat.slug}
-                      href={`/shop/${cat.slug}`}
-                      prefetch={false}
-                      onClick={() => setDrawerOpen(false)}
-                      className={cn(
-                        "flex items-center justify-between pl-8 pr-5 py-2.5 text-sm font-[family-name:var(--font-body)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-brand-primary)]",
-                        isItemActive
-                          ? "text-[var(--color-brand-primary)] font-semibold"
-                          : "text-[var(--color-text-body)] hover:text-[var(--color-brand-primary)]"
-                      )}
-                    >
-                      <span>{cat.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+          {/* Combo Offers */}
+          <Link
+            href="/combo-offers"
+            onClick={() => setDrawerOpen(false)}
+            className={cn(
+              "flex items-center px-5 py-3 text-base font-[family-name:var(--font-body)] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-brand-primary)]",
+              isComboOffersActive
+                ? "bg-[var(--color-surface-sunken)] text-[var(--color-brand-primary)] font-semibold"
+                : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-brand-primary)]"
             )}
-          </div>
+          >
+            Combo Offers
+          </Link>
 
           {/* About Us */}
           <Link
