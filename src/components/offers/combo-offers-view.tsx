@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { ShoppingCart, Check, Loader2, Plus, Minus, ArrowRight, Sparkles, Truck } from "lucide-react";
+import { ShoppingCart, Loader2, Plus, Minus, ArrowRight, Sparkles, Truck } from "lucide-react";
 import { useCart } from "@/context/cart-context";
 import { FALLBACK_COMBO_DATA, type ComboOfferItem } from "@/lib/storefront/api";
 
@@ -17,9 +17,7 @@ interface AddToCartControlProps {
 }
 
 function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps) {
-  const { addItem, isVariantMutating } = useCart();
-  const [quantity, setQuantity] = useState(1);
-  const [justAdded, setJustAdded] = useState(false);
+  const { cart, addItem, updateQuantity, removeItem, isVariantMutating } = useCart();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedVariant = product.variants.find((v) => v.id === selectedVariantId) ?? product.variants[0];
@@ -27,15 +25,14 @@ function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps)
   const maxAvailable = selectedVariant ? Math.min(selectedVariant.stock, 10) : 0;
   const isOutOfStock = !selectedVariant || selectedVariant.stock <= 0;
 
+  const cartItem = cart?.items?.find((item) => item.variantId === selectedVariant?.id);
+  const currentQty = cartItem?.quantity ?? 0;
+
   async function handleAddToCart() {
     if (!selectedVariant || isOutOfStock || isPending) return;
     setErrorMessage(null);
     try {
-      const success = await addItem(selectedVariant.id, quantity);
-      if (success) {
-        setJustAdded(true);
-        setTimeout(() => setJustAdded(false), 3500);
-      }
+      await addItem(selectedVariant.id, 1);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to add to cart. Please try again.";
       setErrorMessage(msg);
@@ -43,15 +40,23 @@ function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps)
   }
 
   function handleIncrement() {
-    if (quantity < maxAvailable) {
-      setQuantity((q) => q + 1);
-    }
+    if (!selectedVariant || isPending) return;
+    if (maxAvailable > 0 && currentQty >= maxAvailable) return;
+    setErrorMessage(null);
+    updateQuantity(selectedVariant.id, currentQty + 1).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to update quantity. Please try again.";
+      setErrorMessage(msg);
+    });
   }
 
   function handleDecrement() {
-    if (quantity > 1) {
-      setQuantity((q) => q - 1);
-    }
+    if (!selectedVariant || isPending) return;
+    setErrorMessage(null);
+    const action = currentQty <= 1 ? removeItem(selectedVariant.id) : updateQuantity(selectedVariant.id, currentQty - 1);
+    action.catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to update quantity. Please try again.";
+      setErrorMessage(msg);
+    });
   }
 
   if (!selectedVariant) {
@@ -60,23 +65,27 @@ function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps)
 
   return (
     <div className="space-y-3">
-      {/* Price Summary */}
+      {/* Price & Savings Summary - Savings on Left, Price on Right */}
       <div className="flex items-baseline justify-between border-t border-[#E8DFD4] pt-3.5">
-        <div className="flex items-baseline gap-2">
-          <span className="font-[family-name:var(--font-price)] text-2xl font-bold tracking-tight text-[#BF5330]">
+        <div>
+          {selectedVariant.mrpPaise && selectedVariant.mrpPaise > selectedVariant.pricePaise ? (
+            <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2.5 py-1 text-[13px] sm:text-[14px] font-bold text-[#BF5330]">
+              Save {formatRupee(selectedVariant.mrpPaise - selectedVariant.pricePaise)}
+            </span>
+          ) : (
+            <span />
+          )}
+        </div>
+        <div className="flex items-baseline gap-1.5 sm:gap-2">
+          <span className="font-[family-name:var(--font-price)] text-lg sm:text-xl font-bold tracking-tight text-[#BF5330]">
             {formatRupee(selectedVariant.pricePaise)}
           </span>
           {selectedVariant.mrpPaise && selectedVariant.mrpPaise > selectedVariant.pricePaise && (
-            <span className="font-[family-name:var(--font-price)] text-sm font-medium text-[#7A6E65] line-through">
+            <span className="font-[family-name:var(--font-price)] text-xs sm:text-sm font-medium text-[#7A6E65] line-through">
               {formatRupee(selectedVariant.mrpPaise)}
             </span>
           )}
         </div>
-        {selectedVariant.mrpPaise && selectedVariant.mrpPaise > selectedVariant.pricePaise && (
-          <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2 py-0.5 text-[11px] font-bold text-[#BF5330]">
-            Save {formatRupee(selectedVariant.mrpPaise - selectedVariant.pricePaise)}
-          </span>
-        )}
       </div>
 
       {/* Stock warning if low */}
@@ -86,84 +95,66 @@ function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps)
         </p>
       )}
 
-      {/* Quantity & Add to Cart button */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-        <div
-          className="flex h-[42px] items-center justify-between rounded-[6px] border border-[#E8DFD4] bg-[#FFFBF7] px-2 shadow-xs sm:w-32"
-          role="group"
-          aria-label="Quantity selector"
-        >
+      {/* Single Add to Cart button when quantity is 0, or - [quantity] + when in cart */}
+      <div className="w-full">
+        {currentQty === 0 ? (
           <button
             type="button"
-            onClick={handleDecrement}
-            disabled={quantity <= 1 || isPending || isOutOfStock}
-            className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#4A3B32] hover:bg-[#FAF5EE] hover:text-[#BF5330] disabled:opacity-30 transition-colors"
-            aria-label="Decrease quantity"
+            onClick={handleAddToCart}
+            disabled={isPending || isOutOfStock}
+            className={`w-full h-[42px] flex items-center justify-center gap-2 rounded-[6px] px-5 text-sm font-semibold shadow-xs transition-all duration-150 font-[family-name:var(--font-body)] ${
+              isOutOfStock
+                ? "bg-[#FAF5EE] border border-[#E8DFD4] text-[#7A6E65] cursor-not-allowed"
+                : "bg-[#BF5330] text-white hover:bg-[#8F3E20] active:scale-[0.99] cursor-pointer"
+            }`}
+            aria-live="polite"
           >
-            <Minus className="h-3.5 w-3.5" />
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <span>Adding to Cart...</span>
+              </>
+            ) : isOutOfStock ? (
+              <span>Sold Out</span>
+            ) : (
+              <>
+                <ShoppingCart className="h-4 w-4 text-white" />
+                <span>Add to Cart</span>
+              </>
+            )}
           </button>
-          <span className="font-[family-name:var(--font-price)] font-bold text-[#1A1614] text-sm tabular-nums px-2">
-            {quantity}
-          </span>
-          <button
-            type="button"
-            onClick={handleIncrement}
-            disabled={quantity >= maxAvailable || isPending || isOutOfStock}
-            className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#4A3B32] hover:bg-[#FAF5EE] hover:text-[#BF5330] disabled:opacity-30 transition-colors"
-            aria-label="Increase quantity"
+        ) : (
+          <div
+            className="w-full h-[42px] rounded-[6px] bg-[#BF5330] text-white flex items-center justify-between px-3 shadow-xs select-none"
+            role="group"
+            aria-label={`Quantity in cart for ${product.name}`}
           >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleDecrement}
+              disabled={isPending}
+              className="h-8 w-8 rounded-[4px] flex items-center justify-center hover:bg-[#8F3E20] active:scale-95 transition-all text-white cursor-pointer disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
+              aria-label="Decrease quantity"
+            >
+              <Minus className="h-4 w-4 stroke-[2.5]" />
+            </button>
 
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          disabled={isPending || isOutOfStock}
-          className={`flex-1 h-[42px] flex items-center justify-center gap-2 rounded-[6px] px-5 text-sm font-semibold shadow-xs transition-all duration-200 font-[family-name:var(--font-body)] ${
-            justAdded
-              ? "bg-[#247B49] text-white"
-              : isOutOfStock
-              ? "bg-[#FAF5EE] border border-[#E8DFD4] text-[#7A6E65] cursor-not-allowed"
-              : "bg-[#BF5330] text-white hover:bg-[#8F3E20] active:scale-[0.99]"
-          }`}
-          aria-live="polite"
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Adding to Cart...</span>
-            </>
-          ) : justAdded ? (
-            <>
-              <Check className="h-4 w-4 text-white stroke-[3]" />
-              <span>Added to Cart!</span>
-            </>
-          ) : isOutOfStock ? (
-            <span>Sold Out</span>
-          ) : (
-            <>
-              <ShoppingCart className="h-4 w-4" />
-              <span>Add to Cart • {formatRupee(selectedVariant.pricePaise * quantity)}</span>
-            </>
-          )}
-        </button>
+            <span className="font-[family-name:var(--font-price)] font-bold text-[16px] text-white select-none px-4 tracking-tight min-w-[24px] text-center">
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin inline-block" /> : currentQty}
+            </span>
+
+            <button
+              type="button"
+              onClick={handleIncrement}
+              disabled={isPending || (maxAvailable > 0 && currentQty >= maxAvailable)}
+              className="h-8 w-8 rounded-[4px] flex items-center justify-center hover:bg-[#8F3E20] active:scale-95 transition-all text-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
+              aria-label="Increase quantity"
+            >
+              <Plus className="h-4 w-4 stroke-[2.5]" />
+            </button>
+          </div>
+        )}
       </div>
-
-      {/* Success notification & Quick checkout link */}
-      {justAdded && (
-        <div className="flex items-center justify-between rounded-[8px] bg-[#FAF5EE] border border-[#E8DFD4] px-3.5 py-2 text-xs text-[#247B49] animate-in fade-in slide-in-from-top-1 duration-200">
-          <span className="font-semibold flex items-center gap-1.5">
-            <Check className="h-3.5 w-3.5" /> Item added to your cart!
-          </span>
-          <Link
-            href="/cart"
-            className="inline-flex items-center font-bold text-[#BF5330] hover:text-[#8F3E20] hover:underline ml-2"
-          >
-            View Cart & Checkout <ArrowRight className="h-3 w-3 ml-1" />
-          </Link>
-        </div>
-      )}
 
       {/* Error notification */}
       {errorMessage && (
@@ -198,7 +189,7 @@ export function ComboOffersView({
             <Sparkles className="h-3 w-3" />
             Limited Time Offers
           </div>
-          <h1 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#1A1614]">
+          <h1 className="font-[family-name:var(--font-gurmukhi)] text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-[#1A1614]">
             Exclusive Combo Offers
           </h1>
           <p className="mt-4 text-base sm:text-lg text-[#4A3B32] leading-relaxed font-[family-name:var(--font-body)]">
@@ -250,12 +241,20 @@ export function ComboOffersView({
                   <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
                     Package Highlights
                   </h3>
-                  <ul className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium">
-                    <li className="flex items-center gap-1.5"><span className="text-[#247B49] font-bold">✓</span> Traditional Health Mix</li>
-                    <li className="flex items-center gap-1.5"><span className="text-[#247B49] font-bold">✓</span> Homemade Podi Varieties</li>
-                    <li className="flex items-center gap-1.5"><span className="text-[#247B49] font-bold">✓</span> Nutrient-Dense Laddus</li>
-                    <li className="flex items-center gap-1.5"><span className="text-[#247B49] font-bold">✓</span> Pure Native Ingredients</li>
-                  </ul>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium">
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
+                      <span className="text-[#247B49] font-bold">✓</span> Traditional Health Mix
+                    </div>
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
+                      <span className="text-[#247B49] font-bold">✓</span> Homemade Podi Varieties
+                    </div>
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
+                      <span className="text-[#247B49] font-bold">✓</span> Nutrient-Dense Laddus
+                    </div>
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
+                      <span className="text-[#247B49] font-bold">✓</span> Pure Native Ingredients
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -305,17 +304,17 @@ export function ComboOffersView({
                     What&apos;s Inside (250g each):
                   </h3>
                   <div className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium">
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2">
-                      🍬 Kadalai Urundai (250 g)
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
+                      Kadalai Urundai (250 g)
                     </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2">
-                      🍬 Ellu Urundai (250 g)
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
+                      Ellu Urundai (250 g)
                     </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2">
-                      🍬 Rava Laddu (250 g)
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
+                      Rava Laddu (250 g)
                     </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2">
-                      🍬 Karuppu Kavuni Laddu (250 g)
+                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
+                      Karuppu Kavuni Laddu (250 g)
                     </div>
                   </div>
                 </div>
@@ -442,16 +441,13 @@ export function ComboOffersView({
                             key={v.id}
                             type="button"
                             onClick={() => setSelectedChipsVariantId(v.id)}
-                            className={`flex flex-col items-center justify-center rounded-[6px] p-2 text-center transition-all ${
+                            className={`h-9 px-2 rounded-[6px] flex items-center justify-center text-center font-[family-name:var(--font-body)] text-xs sm:text-[13px] transition-all cursor-pointer select-none ${
                               isSelected
                                 ? "bg-[#FDF3EE] border-2 border-[#BF5330] text-[#BF5330] font-semibold shadow-2xs"
                                 : "bg-white text-[#1A1614] border border-[#E8DFD4] hover:border-[#BF5330]/50 hover:bg-[#FAF5EE] font-medium"
                             }`}
                           >
-                            <span className="text-[11px]">{v.label}</span>
-                            <span className={`text-xs font-bold font-[family-name:var(--font-price)] mt-0.5 ${isSelected ? "text-[#BF5330]" : "text-[#4A3B32]"}`}>
-                              {formatRupee(v.pricePaise)}
-                            </span>
+                            <span>{v.label}</span>
                           </button>
                         );
                       })}

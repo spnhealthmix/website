@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, DM_Serif_Display, Inter, Lora, Manrope, Nunito_Sans, PT_Serif } from "next/font/google";
+import { Archivo, DM_Serif_Display, Inter, Lora, Manrope, Noto_Serif_Gurmukhi, Nunito_Sans, PT_Serif } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,6 +31,13 @@ const dmSerifDisplay = DM_Serif_Display({
   style: ["normal", "italic"],
   display: "swap",
   variable: "--font-dm-serif",
+});
+
+const notoSerifGurmukhi = Noto_Serif_Gurmukhi({
+  subsets: ["gurmukhi", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-noto-serif-gurmukhi",
 });
 
 const manrope = Manrope({
@@ -95,11 +102,12 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${lora.variable} ${dmSerifDisplay.variable} ${manrope.variable} ${archivo.variable} ${nunitoSans.variable} ${inter.variable} ${ptSerif.variable}`}
+        className={`${lora.variable} ${dmSerifDisplay.variable} ${notoSerifGurmukhi.variable} ${manrope.variable} ${archivo.variable} ${nunitoSans.variable} ${inter.variable} ${ptSerif.variable}`}
         style={
           {
             "--font-logo": `var(--font-lora), "Lora", Georgia, serif`,
             "--font-heading": `var(--font-dm-serif), "DM Serif Display", Georgia, serif`,
+            "--font-gurmukhi": `var(--font-noto-serif-gurmukhi), "Noto Serif Gurmukhi", Georgia, serif`,
             "--font-product": `var(--font-manrope), "Manrope", system-ui, sans-serif`,
             "--font-body": `var(--font-manrope), "Manrope", system-ui, sans-serif`,
             "--font-price": `var(--font-archivo), "Archivo", sans-serif`,
