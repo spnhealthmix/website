@@ -9,7 +9,7 @@
 
 import { cache } from "react";
 import { getDb } from "@/lib/db";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { categories, productImages, products, productVariants } from "@/lib/db/schema";
 import { imageUrl } from "@/lib/storage/storage";
 import {
@@ -283,6 +283,201 @@ export const fetchBestsellerProducts = cache(async (): Promise<{
   } catch (err) {
     console.error("Failed to load bestseller products:", err);
     return { featured: [], all: [] };
+  }
+});
+
+export type ComboOfferItem = {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string | null;
+  variants: {
+    id: string;
+    sku: string;
+    label: string;
+    weightGrams: number | null;
+    pricePaise: number;
+    mrpPaise: number;
+    stock: number;
+    inStock: boolean;
+  }[];
+};
+
+export const FALLBACK_COMBO_DATA: Record<string, ComboOfferItem> = {
+  "family-combo-offer": {
+    id: "6ea90443-e162-4567-b952-b2b47059f130",
+    slug: "family-combo-offer",
+    name: "Family Combo Offer",
+    shortDescription: "Diwali Special 12-item family combo: Health mixes, spice masalas, podis, and traditional sweets.",
+    variants: [
+      {
+        id: "4c4eaa02-c941-4766-b187-dafd4568481e",
+        sku: "family-combo-12in1",
+        label: "12 Items Pack",
+        weightGrams: 1500,
+        pricePaise: 99900,
+        mrpPaise: 159900,
+        stock: 50,
+        inStock: true,
+      },
+    ],
+  },
+  "sweet-laddus-combo": {
+    id: "9cbb8e71-076f-4485-a3f0-27038ea05b2c",
+    slug: "sweet-laddus-combo",
+    name: "Fast Moving Sweet Laddu's Combo",
+    shortDescription: "Diwali Special 4-pack sweet laddus: Kadalai Urundai, Ellu Urundai, Rava Laddu, and Karuppu Kavuni Laddu (250g each).",
+    variants: [
+      {
+        id: "21c367bb-f839-4959-882e-1154b4a50181",
+        sku: "sweet-laddus-combo-1kg",
+        label: "4 × 250g Pack",
+        weightGrams: 1000,
+        pricePaise: 49900,
+        mrpPaise: 69900,
+        stock: 50,
+        inStock: true,
+      },
+    ],
+  },
+  "spicy-podi-varieties-combo": {
+    id: "8a093489-a248-48cb-bb42-b80e82de96a1",
+    slug: "spicy-podi-varieties-combo",
+    name: "Spicy Podi Varieties Combo",
+    shortDescription: "Diwali Special 6-pack authentic South Indian podi varieties (50g each).",
+    variants: [
+      {
+        id: "7dbf413a-cc17-495e-8744-f25c1ca03f71",
+        sku: "spicy-podi-combo-300g",
+        label: "6 × 50g Pack",
+        weightGrams: 300,
+        pricePaise: 34900,
+        mrpPaise: 39900,
+        stock: 50,
+        inStock: true,
+      },
+    ],
+  },
+  "nendram-banana-chips": {
+    id: "f5cb83cd-fadf-46b6-8c6b-9c6337e928f0",
+    slug: "nendram-banana-chips",
+    name: "Nendram Banana Chips",
+    shortDescription: "Authentic crispy golden Kerala-style Nendram banana chips.",
+    variants: [
+      {
+        id: "7edae54e-302f-4069-9d9a-bb782d2a5651",
+        sku: "banana-chips-250g",
+        label: "250 g",
+        weightGrams: 250,
+        pricePaise: 11900,
+        mrpPaise: 11900,
+        stock: 100,
+        inStock: true,
+      },
+      {
+        id: "3c1c395a-bc06-4890-bc96-2ceb8de8436d",
+        sku: "banana-chips-500g",
+        label: "500 g",
+        weightGrams: 500,
+        pricePaise: 21900,
+        mrpPaise: 21900,
+        stock: 100,
+        inStock: true,
+      },
+      {
+        id: "27f23ede-24a1-4bab-8c42-6b1b977e98af",
+        sku: "banana-chips-1kg",
+        label: "1 kg",
+        weightGrams: 1000,
+        pricePaise: 42900,
+        mrpPaise: 42900,
+        stock: 50,
+        inStock: true,
+      },
+    ],
+  },
+};
+
+export const fetchComboOffersData = cache(async (): Promise<Record<string, ComboOfferItem>> => {
+  const { db } = getDeps();
+  if (!db) {
+    return FALLBACK_COMBO_DATA;
+  }
+  try {
+    const comboSlugs = [
+      "family-combo-offer",
+      "sweet-laddus-combo",
+      "spicy-podi-varieties-combo",
+      "nendram-banana-chips",
+    ];
+
+    const prods = await db
+      .select({
+        id: products.id,
+        slug: products.slug,
+        name: products.name,
+        shortDescription: products.shortDescription,
+      })
+      .from(products)
+      .where(and(inArray(products.slug, comboSlugs), eq(products.isActive, true)));
+
+    if (prods.length === 0) {
+      return FALLBACK_COMBO_DATA;
+    }
+
+    const prodIds = prods.map((p) => p.id);
+    const vars = await db
+      .select({
+        id: productVariants.id,
+        productId: productVariants.productId,
+        sku: productVariants.sku,
+        label: productVariants.label,
+        weightGrams: productVariants.weightGrams,
+        pricePaise: productVariants.pricePaise,
+        mrpPaise: productVariants.mrpPaise,
+        stock: productVariants.stock,
+        isActive: productVariants.isActive,
+      })
+      .from(productVariants)
+      .where(and(inArray(productVariants.productId, prodIds), eq(productVariants.isActive, true)))
+      .orderBy(asc(productVariants.pricePaise));
+
+    const result: Record<string, ComboOfferItem> = {};
+
+    for (const p of prods) {
+      const pVars = vars
+        .filter((v) => v.productId === p.id)
+        .map((v) => ({
+          id: v.id,
+          sku: v.sku,
+          label: v.label,
+          weightGrams: v.weightGrams,
+          pricePaise: v.pricePaise,
+          mrpPaise: v.mrpPaise,
+          stock: v.stock,
+          inStock: v.stock > 0,
+        }));
+
+      result[p.slug] = {
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        shortDescription: p.shortDescription,
+        variants: pVars,
+      };
+    }
+
+    // Merge in any missing with fallback to guarantee all 4 exist
+    for (const slug of comboSlugs) {
+      if (!result[slug] || result[slug].variants.length === 0) {
+        result[slug] = FALLBACK_COMBO_DATA[slug];
+      }
+    }
+
+    return result;
+  } catch (err) {
+    console.error("Failed to fetch live combo offers data:", err);
+    return FALLBACK_COMBO_DATA;
   }
 });
 

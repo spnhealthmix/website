@@ -81,7 +81,7 @@ export function AdminNav({ profile }: { profile: AdminProfile }) {
   return (
     <>
       {/* Mobile Top Header */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-[#E8DFD4] bg-[#FFFBF7] px-4 py-3">
+      <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-[#E8DFD4] bg-[#FFFBF7] px-4 py-3 no-print">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -116,7 +116,7 @@ export function AdminNav({ profile }: { profile: AdminProfile }) {
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden no-print"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -124,7 +124,7 @@ export function AdminNav({ profile }: { profile: AdminProfile }) {
 
       {/* Main Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#FFFBF7] border-r border-[#E8DFD4] flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:h-screen lg:shrink-0 font-[family-name:var(--font-body)] ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#FFFBF7] border-r border-[#E8DFD4] flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:h-screen lg:shrink-0 font-[family-name:var(--font-body)] no-print ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

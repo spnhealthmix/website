@@ -87,9 +87,25 @@ export function assertAdminOriginAllowed(req: Request, configuredOrigins?: strin
   }
 }
 
+function isLocalhostHost(hostHeader: string | null): boolean {
+  if (!hostHeader) return false;
+  const host = hostHeader.toLowerCase().split(":")[0];
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+}
+
+function isLocalDevelopmentOrigin(url: URL): boolean {
+  const host = url.hostname.toLowerCase();
+  return (
+    (host === "localhost" || host === "127.0.0.1" || host === "[::1]") &&
+    (url.protocol === "http:" || url.protocol === "https:")
+  );
+}
+
 /**
  * Standard CSRF defense for customer mutations.
  * If an Origin header is sent by the browser, it must match an allowed origin.
+ * Legitimate local loopback origins (localhost / 127.0.0.1) are permitted when in non-production
+ * environments or when requests are explicitly directed to a local development server instance.
  */
 export function assertCustomerOriginAllowed(req: Request, configuredOrigins?: string[]): void {
   const origin = req.headers.get("origin")?.trim();
@@ -99,6 +115,24 @@ export function assertCustomerOriginAllowed(req: Request, configuredOrigins?: st
     throw new ApiError(403, "FORBIDDEN_ORIGIN", "Opaque null origins are not permitted for mutations.");
   }
 
+  let canonicalOrigin: string;
+  let originUrl: URL;
+  try {
+    originUrl = new URL(origin);
+    if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") {
+      throw new Error("Invalid scheme");
+    }
+    canonicalOrigin = originUrl.origin.toLowerCase();
+  } catch {
+    throw new ApiError(403, "FORBIDDEN_ORIGIN", "Malformed Origin header.");
+  }
+
+  // Allow loopback origins when running in non-production or when targeting a local development server
+  const isTargetingLocalhost = isLocalhostHost(req.headers.get("host"));
+  if ((process.env.NODE_ENV !== "production" || isTargetingLocalhost) && isLocalDevelopmentOrigin(originUrl)) {
+    return;
+  }
+
   const allowlist = normalizeAllowedOrigins(
     configuredOrigins && configuredOrigins.length > 0
       ? configuredOrigins
@@ -106,17 +140,6 @@ export function assertCustomerOriginAllowed(req: Request, configuredOrigins?: st
   );
 
   if (allowlist.length > 0) {
-    let canonicalOrigin: string;
-    try {
-      const url = new URL(origin);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        throw new Error("Invalid scheme");
-      }
-      canonicalOrigin = url.origin.toLowerCase();
-    } catch {
-      throw new ApiError(403, "FORBIDDEN_ORIGIN", "Malformed Origin header.");
-    }
-
     if (!allowlist.includes(canonicalOrigin)) {
       throw new ApiError(403, "FORBIDDEN_ORIGIN", "Request origin not allowed.");
     }

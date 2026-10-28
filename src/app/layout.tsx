@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
-import { Archivo, DM_Serif_Display, Lora, Manrope, Nunito_Sans } from "next/font/google";
+import { Archivo, DM_Serif_Display, Inter, Lora, Manrope, Nunito_Sans, PT_Serif } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const ptSerif = PT_Serif({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-pt-serif",
+});
 
 const lora = Lora({
   subsets: ["latin"],
@@ -80,7 +95,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${lora.variable} ${dmSerifDisplay.variable} ${manrope.variable} ${archivo.variable} ${nunitoSans.variable}`}
+        className={`${lora.variable} ${dmSerifDisplay.variable} ${manrope.variable} ${archivo.variable} ${nunitoSans.variable} ${inter.variable} ${ptSerif.variable}`}
         style={
           {
             "--font-logo": `var(--font-lora), "Lora", Georgia, serif`,
@@ -89,6 +104,8 @@ export default function RootLayout({
             "--font-body": `var(--font-manrope), "Manrope", system-ui, sans-serif`,
             "--font-price": `var(--font-archivo), "Archivo", sans-serif`,
             "--font-order-id": `var(--font-nunito-sans), "Nunito Sans", sans-serif`,
+            "--font-inter": `var(--font-inter), "Inter", system-ui, sans-serif`,
+            "--font-pt-serif": `var(--font-pt-serif), "PT Serif", Georgia, serif`,
             "--font-tamil": `"Noto Serif Tamil", "Latha", serif`,
           } as React.CSSProperties
         }

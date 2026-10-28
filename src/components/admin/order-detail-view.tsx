@@ -18,6 +18,7 @@ import {
   ArrowRight,
   RefreshCw,
   X,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -483,12 +484,14 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     order.shippingAddress?.pincode || (order.shippingAddress as any)?.postalCode || "";
 
   return (
-    <div className="space-y-6 max-w-6xl font-[family-name:var(--font-body)] text-[#1A1614]">
-      {/* ── Breadcrumb ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 text-xs text-[#635850]">
-        <Link href="/admin/orders" className="hover:text-[#BF5330] transition-colors">
-          Orders
-        </Link>
+    <div className="max-w-6xl font-[family-name:var(--font-body)] text-[#1A1614]">
+      {/* ── Screen-only Order Details Content ────────────────────────────────── */}
+      <div className="space-y-6 print:hidden">
+        {/* ── Breadcrumb ──────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 text-xs text-[#635850]">
+          <Link href="/admin/orders" className="hover:text-[#BF5330] transition-colors">
+            Orders
+          </Link>
         <ChevronRight className="w-3.5 h-3.5 text-[#8A7E74]" />
         <span className="text-[#1A1614] font-medium font-order-id">{order.orderNumber}</span>
       </div>
@@ -527,6 +530,16 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
 
         {/* Header Action Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-[8px] border border-[#E8DFD4] text-[#1A1614] bg-white hover:bg-[#FAF5EF] transition-colors shadow-2xs"
+            title="Print Delivery Address Slip"
+          >
+            <Printer className="w-3.5 h-3.5 text-[#BF5330]" />
+            <span>Print Address</span>
+          </button>
+
           {nextForwardStatus && (
             <button
               type="button"
@@ -1083,13 +1096,24 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
 
           {/* 3. Delivery Address Snapshot Card */}
           <div className="bg-white border border-[#E8DFD4] rounded-[10px] p-5 sm:p-6 shadow-xs text-xs">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-[#FAF5EF] flex items-center justify-center text-[#BF5330]">
-                <MapPin className="w-4 h-4" />
+            <div className="flex items-center justify-between gap-2.5 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#FAF5EF] flex items-center justify-center text-[#BF5330]">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-[#1A1614]">
+                  Delivery Address Snapshot
+                </h2>
               </div>
-              <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-[#1A1614]">
-                Delivery Address Snapshot
-              </h2>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-[6px] border border-[#E8DFD4] text-[#BF5330] hover:bg-[#FDF4ED] hover:border-[#F0C4B8] transition-colors"
+                title="Print Address Slip"
+              >
+                <Printer className="w-3.5 h-3.5 text-[#BF5330]" />
+                <span>Print</span>
+              </button>
             </div>
 
             <div className="space-y-1.5 text-[#635850] leading-relaxed">
@@ -1299,6 +1323,128 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           </div>
         </div>
       )}
+      </div>
+
+      {/* ── Dedicated Print-Only Shipping Address Slip ─────────────────────── */}
+      <div
+        id="admin-address-slip-wrapper"
+        className="hidden print:block print:w-full print:m-0 print:p-0 text-black bg-white"
+      >
+        <div
+          className="w-[500px] max-w-full mx-auto bg-white border border-black rounded-[6px] p-5 space-y-0 text-black box-border"
+          style={{ fontFamily: 'var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+        >
+          {/* ── 1. Header Section ── */}
+          <div className="flex items-start justify-between pb-3.5">
+            <div>
+              <h1
+                className="text-[17px] font-[800] tracking-tight text-black uppercase leading-tight m-0"
+                style={{ fontFamily: 'var(--font-inter), "Inter", sans-serif', fontWeight: 800 }}
+              >
+                SPN HEALTH MIX
+              </h1>
+              <p className="text-[11.5px] font-normal text-black mt-0.5 m-0 leading-tight">
+                Delivery Address Slip
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#374151] block leading-tight">
+                ORDER ID
+              </span>
+              <span className="text-[12.5px] font-bold text-black mt-0.5 block leading-tight">
+                {order.orderNumber}
+              </span>
+            </div>
+          </div>
+
+          {/* Thin horizontal solid black divider underneath header */}
+          <div className="border-t border-black w-full" />
+
+          {/* ── 2. Delivery Address Section ── */}
+          <div className="pt-3.5 pb-4 space-y-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-black block leading-none mb-1.5">
+              DELIVER TO:
+            </span>
+            <div
+              className="text-[16.5px] font-bold text-black leading-snug"
+              style={{ fontFamily: 'var(--font-pt-serif), "PT Serif", Georgia, serif' }}
+            >
+              {order.shippingAddress?.fullName || order.customer.name || "Customer"}
+            </div>
+            {order.shippingAddress?.line1 && (
+              <div className="text-[12.5px] font-normal text-black leading-tight">
+                {order.shippingAddress.line1}
+              </div>
+            )}
+            {order.shippingAddress?.line2 && (
+              <div className="text-[12.5px] font-normal text-black leading-tight">
+                {order.shippingAddress.line2}
+              </div>
+            )}
+            {order.shippingAddress?.landmark && (
+              <div className="text-[12.5px] font-normal text-black leading-tight italic">
+                Landmark: {order.shippingAddress.landmark}
+              </div>
+            )}
+            <div className="text-[14px] font-bold text-black leading-tight pt-0.5">
+              {[order.shippingAddress?.city, order.shippingAddress?.state]
+                .filter(Boolean)
+                .join(", ")}
+              {pincode ? ` - ${pincode}` : ""}
+            </div>
+            {order.shippingAddress?.country && order.shippingAddress.country !== "India" && (
+              <div className="text-[12px] font-normal text-black leading-tight">
+                {order.shippingAddress.country}
+              </div>
+            )}
+          </div>
+
+          {/* Thin light-gray dashed divider */}
+          <div className="border-t border-dashed border-[#9CA3AF] w-full" />
+
+          {/* ── 3. Contact Information Section ── */}
+          <div className="py-3.5 flex items-stretch">
+            {/* Left column: Phone */}
+            <div className="flex-1 pr-4">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-tight mb-1">
+                PHONE / MOBILE
+              </span>
+              <span className="text-[13px] font-bold text-black block leading-tight tracking-wide">
+                {order.shippingAddress?.phone || order.customer.phone || "Not provided"}
+              </span>
+            </div>
+
+            {/* Vertical divider */}
+            <div className="w-[1px] bg-[#9CA3AF] self-stretch mx-1" />
+
+            {/* Right column: Email */}
+            <div className="flex-1 pl-4 text-left">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-tight mb-1">
+                CUSTOMER EMAIL
+              </span>
+              <span className="text-[11.5px] font-normal text-black block leading-tight break-all">
+                {order.customer.email || "Not provided"}
+              </span>
+            </div>
+          </div>
+
+          {/* Thin black solid horizontal divider */}
+          <div className="border-t border-black w-full" />
+
+          {/* ── 4. Footer Section ── */}
+          <div className="pt-3 flex items-center justify-between text-[10px] font-normal text-black">
+            <div>
+              Date: {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+            </div>
+            <div className="flex items-center">
+              <div className="w-[1px] h-3.5 bg-[#9CA3AF] mr-3" />
+              <span>
+                Items: {totalQuantity} {totalQuantity === 1 ? "item" : "items"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

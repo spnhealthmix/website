@@ -180,11 +180,8 @@ export function cartAction(
   const log = deps.log ?? ((m, e) => console.error(m, e));
   return (async () => {
     try {
-      if (opts.mutating && deps.allowedOrigins) {
-        const origin = req.headers.get("origin");
-        if (origin && !deps.allowedOrigins.includes(origin)) {
-          throw new ApiError(403, "FORBIDDEN_ORIGIN", "Request origin not allowed.");
-        }
+      if (opts.mutating) {
+        assertCustomerOriginAllowed(req, deps.allowedOrigins);
       }
       return await deps.withDb(async (db) => {
         const user = await deps.authenticate(req, db);

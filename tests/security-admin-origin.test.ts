@@ -236,4 +236,98 @@ describe("SPN-SEC-005: Fail-Closed Administrative Origin Validation", () => {
       expect(authSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe("Customer mutation origin validation (assertCustomerOriginAllowed)", () => {
+    const configuredOrigins = ["https://www.spnhealthmix.com"];
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    afterEach(() => {
+      (process.env as any).NODE_ENV = originalNodeEnv;
+    });
+
+    it("permits localhost in non-production environments even when not in APP_ORIGINS", () => {
+      (process.env as any).NODE_ENV = "development";
+      const req = new Request("http://localhost:3000/api/cart/items", {
+        method: "POST",
+        headers: { origin: "http://localhost:3000" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).not.toThrow();
+    });
+
+    it("permits 127.0.0.1 in non-production environments", () => {
+      (process.env as any).NODE_ENV = "development";
+      const req = new Request("http://127.0.0.1:3000/api/cart/items", {
+        method: "POST",
+        headers: { origin: "http://127.0.0.1:3000" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).not.toThrow();
+    });
+
+    it("strictly rejects external unauthorized origins in development", () => {
+      (process.env as any).NODE_ENV = "development";
+      const req = new Request("http://localhost:3000/api/cart/items", {
+        method: "POST",
+        headers: { origin: "https://evil-attacker.com" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).toThrowError(
+        expect.objectContaining({
+          status: 403,
+          code: "FORBIDDEN_ORIGIN",
+        }),
+      );
+    });
+
+    it("strictly rejects null origin even in development", () => {
+      (process.env as any).NODE_ENV = "development";
+      const req = new Request("http://localhost:3000/api/cart/items", {
+        method: "POST",
+        headers: { origin: "null" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).toThrowError(
+        expect.objectContaining({
+          status: 403,
+          code: "FORBIDDEN_ORIGIN",
+        }),
+      );
+    });
+
+    it("strictly rejects localhost in production when not explicitly in APP_ORIGINS", () => {
+      (process.env as any).NODE_ENV = "production";
+      const req = new Request("https://www.spnhealthmix.com/api/cart/items", {
+        method: "POST",
+        headers: { origin: "http://localhost:3000", host: "www.spnhealthmix.com" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).toThrowError(
+        expect.objectContaining({
+          status: 403,
+          code: "FORBIDDEN_ORIGIN",
+        }),
+      );
+    });
+
+    it("permits localhost in production mode when targeting a local server (next start)", () => {
+      (process.env as any).NODE_ENV = "production";
+      const req = new Request("http://localhost:3000/api/cart/items", {
+        method: "POST",
+        headers: { origin: "http://localhost:3000", host: "localhost:3000" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).not.toThrow();
+    });
+
+    it("permits configured production domain in production", () => {
+      (process.env as any).NODE_ENV = "production";
+      const req = new Request("https://www.spnhealthmix.com/api/cart/items", {
+        method: "POST",
+        headers: { origin: "https://www.spnhealthmix.com" },
+      });
+
+      expect(() => assertCustomerOriginAllowed(req, configuredOrigins)).not.toThrow();
+    });
+  });
 });

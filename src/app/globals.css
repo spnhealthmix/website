@@ -333,3 +333,53 @@
   color: var(--color-text-primary);
 }
 
+/* Print-specific stylesheet for Admin Address Slip */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Force-hide global layout chrome, admin nav, sidebar, header, footer, backdrop */
+  nav,
+  aside,
+  header,
+  footer,
+  .no-print,
+  [aria-label="Toggle navigation"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Reset main layout container scroll and margins */
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    display: block !important;
+  }
+
+  /* Prevent page breaks inside the slip and ensure 1 single page */
+  #admin-address-slip-wrapper {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 auto !important;
+  }
+}
