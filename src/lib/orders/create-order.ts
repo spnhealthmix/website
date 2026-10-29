@@ -1,5 +1,5 @@
-import { eq, inArray } from "drizzle-orm";
-import { orderItems, orders, productVariants, products, type AddressSnapshot } from "../db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
+import { orderCounters, orderItems, orders, productVariants, products, type AddressSnapshot } from "../db/schema";
 import { calculateDiscounts } from "../discounts/engine";
 import { OrderError, type AnyDb } from "./common";
 import { decrementStock } from "./stock";
@@ -40,13 +40,66 @@ export type PendingOrder = {
   expiresAt: Date;
 };
 
-// No 0/O/1/I so order numbers are easy to read out over the phone.
-const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-function generateOrderNumber(now: Date) {
+/**
+ * Daily sequential order number generator (e.g. SPN-261029-0001).
+ * Uses atomic upsert on order_counters table to ensure concurrency safety.
+ */
+async function generateOrderNumber(tx: AnyDb, now: Date): Promise<string> {
   const d = now.toISOString().slice(2, 10).replace(/-/g, ""); // YYMMDD
-  const bytes = crypto.getRandomValues(new Uint8Array(5));
-  const suffix = Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
-  return `SPN-${d}-${suffix}`;
+
+  // Ensure table exists (defensive fallback for fresh test / branch DBs)
+  await tx.execute(sql`
+    CREATE TABLE IF NOT EXISTS "order_counters" (
+      "date" text PRIMARY KEY NOT NULL,
+      "last_value" integer DEFAULT 0 NOT NULL,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    );
+  `);
+
+  const [row] = await tx
+    .insert(orderCounters)
+    .values({
+      date: d,
+      lastValue: 1,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: orderCounters.date,
+      set: {
+        lastValue: sql`${orderCounters.lastValue} + 1`,
+        updatedAt: now,
+      },
+    })
+    .returning({
+      lastValue: orderCounters.lastValue,
+    });
+
+  let seqNum = row.lastValue;
+  let orderNumber = `SPN-${d}-${String(seqNum).padStart(4, "0")}`;
+
+  // Safety check to bypass any pre-existing collided order numbers
+  while (true) {
+    const existing = await tx
+      .select({ id: orders.id })
+      .from(orders)
+      .where(eq(orders.orderNumber, orderNumber))
+      .limit(1);
+
+    if (existing.length === 0) {
+      break;
+    }
+
+    seqNum += 1;
+    orderNumber = `SPN-${d}-${String(seqNum).padStart(4, "0")}`;
+    await tx
+      .update(orderCounters)
+      .set({ lastValue: seqNum, updatedAt: now })
+      .where(eq(orderCounters.date, d));
+  }
+
+  return orderNumber;
 }
 
 /**
@@ -139,7 +192,7 @@ export async function createPendingOrder(db: AnyDb, input: CreateOrderInput): Pr
     const shipping =
       typeof input.shipping === "function" ? input.shipping(subtotal) : (input.shipping ?? 0);
     if (!Number.isInteger(shipping) || shipping < 0) throw new Error("Invalid shipping amount");
-    const orderNumber = generateOrderNumber(now);
+    const orderNumber = await generateOrderNumber(tx, now);
 
     const discounts = await calculateDiscounts(tx, {
       items: lines.map((l) => ({

@@ -636,3 +636,15 @@ export const rateLimits = pgTable(
     index("rate_limits_reset_at_idx").on(t.resetAt),
   ],
 );
+
+/* --------------------------- Order Counters ------------------------------ */
+
+export const orderCounters = pgTable(
+  "order_counters",
+  {
+    date: text("date").primaryKey(), // "YYMMDD", e.g. "261029"
+    lastValue: integer("last_value").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+);

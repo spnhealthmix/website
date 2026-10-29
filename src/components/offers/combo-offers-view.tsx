@@ -189,7 +189,7 @@ export function ComboOffersView({
             <Sparkles className="h-3 w-3" />
             Limited Time Offers
           </div>
-          <h1 className="font-[family-name:var(--font-gurmukhi)] text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-[#1A1614]">
+          <h1 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-[#1A1614]">
             Exclusive Combo Offers
           </h1>
           <p className="mt-4 text-base sm:text-lg text-[#4A3B32] leading-relaxed font-[family-name:var(--font-body)]">

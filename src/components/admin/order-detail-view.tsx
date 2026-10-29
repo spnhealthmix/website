@@ -21,6 +21,7 @@ import {
   Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DEFAULT_BUSINESS_SETTINGS, type BusinessSettings } from "@/lib/settings/types";
 
 type OrderItem = {
   id: string;
@@ -212,6 +213,27 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   const [creatingShipment, setCreatingShipment] = useState(false);
   const [syncingTracking, setSyncingTracking] = useState(false);
   const [shipmentError, setShipmentError] = useState<string | null>(null);
+
+  // Business Settings for Shipping Address Slip (Company Phone & Address)
+  const [businessSettings, setBusinessSettings] = useState<BusinessSettings>(DEFAULT_BUSINESS_SETTINGS);
+
+  useEffect(() => {
+    fetch("/api/admin/settings/business", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data === "object") {
+          setBusinessSettings((prev) => ({
+            ...prev,
+            ...data,
+            address: {
+              ...prev.address,
+              ...(data.address || {}),
+            },
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchOrder = async () => {
     setLoading(true);
@@ -1331,19 +1353,19 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
         className="hidden print:block print:w-full print:m-0 print:p-0 text-black bg-white"
       >
         <div
-          className="w-[500px] max-w-full mx-auto bg-white border border-black rounded-[6px] p-5 space-y-0 text-black box-border"
+          className="w-[520px] max-w-full mx-auto bg-white border-2 border-black rounded-[6px] p-5 space-y-0 text-black box-border"
           style={{ fontFamily: 'var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
         >
           {/* ── 1. Header Section ── */}
-          <div className="flex items-start justify-between pb-3.5">
+          <div className="flex items-start justify-between pb-3">
             <div>
               <h1
-                className="text-[17px] font-[800] tracking-tight text-black uppercase leading-tight m-0"
+                className="text-[18px] font-[800] tracking-tight text-black uppercase leading-tight m-0"
                 style={{ fontFamily: 'var(--font-inter), "Inter", sans-serif', fontWeight: 800 }}
               >
-                SPN HEALTH MIX
+                {businessSettings.businessName || "SPN HEALTH MIX"}
               </h1>
-              <p className="text-[11.5px] font-normal text-black mt-0.5 m-0 leading-tight">
+              <p className="text-[11.5px] font-medium text-black mt-0.5 m-0 leading-tight">
                 Delivery Address Slip
               </p>
             </div>
@@ -1351,20 +1373,25 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#374151] block leading-tight">
                 ORDER ID
               </span>
-              <span className="text-[12.5px] font-bold text-black mt-0.5 block leading-tight">
+              <span className="text-[13px] font-bold text-black mt-0.5 block leading-tight">
                 {order.orderNumber}
               </span>
             </div>
           </div>
 
-          {/* Thin horizontal solid black divider underneath header */}
-          <div className="border-t border-black w-full" />
+          {/* Solid black divider underneath header */}
+          <div className="border-t-2 border-black w-full" />
 
-          {/* ── 2. Delivery Address Section ── */}
-          <div className="pt-3.5 pb-4 space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-black block leading-none mb-1.5">
-              DELIVER TO:
-            </span>
+          {/* ── 2. Delivery Address Section (DELIVER TO) ── */}
+          <div className="pt-3.5 pb-3.5 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-black block leading-none mb-1">
+                DELIVER TO:
+              </span>
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#4B5563]">
+                Order Date: {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            </div>
             <div
               className="text-[16.5px] font-bold text-black leading-snug"
               style={{ fontFamily: 'var(--font-pt-serif), "PT Serif", Georgia, serif' }}
@@ -1372,12 +1399,12 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
               {order.shippingAddress?.fullName || order.customer.name || "Customer"}
             </div>
             {order.shippingAddress?.line1 && (
-              <div className="text-[12.5px] font-normal text-black leading-tight">
+              <div className="text-[13px] font-normal text-black leading-tight">
                 {order.shippingAddress.line1}
               </div>
             )}
             {order.shippingAddress?.line2 && (
-              <div className="text-[12.5px] font-normal text-black leading-tight">
+              <div className="text-[13px] font-normal text-black leading-tight">
                 {order.shippingAddress.line2}
               </div>
             )}
@@ -1397,50 +1424,77 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                 {order.shippingAddress.country}
               </div>
             )}
+
+            {/* Customer Phone & Email */}
+            <div className="pt-2 flex items-center gap-4 text-[12.5px]">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[#4B5563] block">CUSTOMER PHONE / MOBILE:</span>
+                <span className="text-[13px] font-bold text-black tracking-wide">
+                  {order.shippingAddress?.phone || order.customer.phone || "Not provided"}
+                </span>
+              </div>
+              {order.customer.email && (
+                <div className="border-l border-[#9CA3AF] pl-4">
+                  <span className="text-[10px] font-bold uppercase text-[#4B5563] block">CUSTOMER EMAIL:</span>
+                  <span className="text-[11.5px] font-medium text-black">
+                    {order.customer.email}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Thin light-gray dashed divider */}
           <div className="border-t border-dashed border-[#9CA3AF] w-full" />
 
-          {/* ── 3. Contact Information Section ── */}
-          <div className="py-3.5 flex items-stretch">
-            {/* Left column: Phone */}
-            <div className="flex-1 pr-4">
-              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-tight mb-1">
-                PHONE / MOBILE
-              </span>
-              <span className="text-[13px] font-bold text-black block leading-tight tracking-wide">
-                {order.shippingAddress?.phone || order.customer.phone || "Not provided"}
-              </span>
+          {/* ── 3. From / Company Address & Phone Number Section ── */}
+          <div className="py-3">
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-none mb-1">
+              FROM (SENDER / RETURN ADDRESS):
+            </span>
+            <div className="text-[13px] font-bold text-black leading-tight">
+              {businessSettings.businessName || "SPN Health Mix"}
             </div>
-
-            {/* Vertical divider */}
-            <div className="w-[1px] bg-[#9CA3AF] self-stretch mx-1" />
-
-            {/* Right column: Email */}
-            <div className="flex-1 pl-4 text-left">
-              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-tight mb-1">
-                CUSTOMER EMAIL
-              </span>
-              <span className="text-[11.5px] font-normal text-black block leading-tight break-all">
-                {order.customer.email || "Not provided"}
-              </span>
+            <div className="text-[12px] font-normal text-black leading-tight mt-1">
+              {[
+                businessSettings.address?.line1,
+                businessSettings.address?.line2,
+                businessSettings.address?.city,
+                businessSettings.address?.state,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              {businessSettings.address?.pincode ? ` - ${businessSettings.address.pincode}` : ""}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-black mt-1.5 font-medium">
+              {businessSettings.phone && (
+                <div>
+                  <span className="font-bold">Phone:</span> {businessSettings.phone}
+                </div>
+              )}
+              {businessSettings.supportEmail && (
+                <div>
+                  <span className="font-bold">Email:</span> {businessSettings.supportEmail}
+                </div>
+              )}
+              {businessSettings.fssaiNumber && (
+                <div>
+                  <span className="font-bold">FSSAI:</span> {businessSettings.fssaiNumber}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Thin black solid horizontal divider */}
+          {/* Solid divider */}
           <div className="border-t border-black w-full" />
 
           {/* ── 4. Footer Section ── */}
-          <div className="pt-3 flex items-center justify-between text-[10px] font-normal text-black">
+          <div className="pt-2.5 flex items-center justify-between text-[10.5px] font-normal text-black">
             <div>
-              Date: {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              Total Items: <span className="font-bold">{totalQuantity} {totalQuantity === 1 ? "item" : "items"}</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-[1px] h-3.5 bg-[#9CA3AF] mr-3" />
-              <span>
-                Items: {totalQuantity} {totalQuantity === 1 ? "item" : "items"}
-              </span>
+            <div>
+              Order Status: <span className="font-bold uppercase">{order.status.replace(/_/g, " ")}</span>
             </div>
           </div>
         </div>
