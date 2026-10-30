@@ -77,9 +77,18 @@ export function ProductPurchasePanel({ product, initialVariantId }: ProductPurch
   };
 
   // Formatted price for selected variant
-  const displayPrice = selectedVariant
-    ? `₹${(selectedVariant.pricePaise / 100).toLocaleString("en-IN")}`
+  const activePricePaise = selectedVariant?.pricePaise ?? 0;
+  const activeMrpPaise = selectedVariant?.mrpPaise ?? 0;
+  const displayPrice = activePricePaise > 0
+    ? `₹${(activePricePaise / 100).toLocaleString("en-IN")}`
     : "—";
+
+  const hasGenuineDiscount = Boolean(
+    activeMrpPaise > activePricePaise &&
+    selectedVariant?.discountPercent &&
+    selectedVariant.discountPercent > 0
+  );
+  const originalMrp = hasGenuineDiscount ? `₹${(activeMrpPaise / 100).toLocaleString("en-IN")}` : null;
 
   // Product description to display
   const descriptionText = product.shortDescription?.trim() || product.description?.trim();
@@ -113,11 +122,29 @@ export function ProductPurchasePanel({ product, initialVariantId }: ProductPurch
       {/* 4. A subtle horizontal divider */}
       <div className="border-b border-[#E8DFD4] mb-6" />
 
-      {/* 5. Product price prominently displayed in rupees, with small tax note */}
-      <div className="flex items-baseline gap-3 mb-6">
-        <span className="font-[family-name:var(--font-price)] font-bold text-[32px] sm:text-[36px] text-[#1A1614] leading-none tracking-tight">
-          {displayPrice}
-        </span>
+      {/* 5. Product price prominently displayed in rupees, with MRP strikethrough, discount badge, and tax note */}
+      <div className="flex flex-col gap-2 mb-6">
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <span className="font-[family-name:var(--font-price)] font-bold text-[32px] sm:text-[36px] text-[#1A1614] leading-none tracking-tight">
+            {displayPrice}
+          </span>
+          {hasGenuineDiscount && originalMrp && (
+            <span className="font-[family-name:var(--font-price)] text-[20px] sm:text-[22px] text-[#7A6E65] line-through font-medium">
+              {originalMrp}
+            </span>
+          )}
+          {hasGenuineDiscount && selectedVariant?.discountPercent ? (
+            <span className="text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              {selectedVariant.discountPercent}% OFF
+            </span>
+          ) : null}
+        </div>
+        {selectedVariant?.offer && (
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 w-fit">
+            <span>🏷️</span>
+            <span>Special Offer: {selectedVariant.offer.name}</span>
+          </div>
+        )}
         <span className="font-[family-name:var(--font-body)] text-[13px] sm:text-[13.5px] text-[#635850] font-normal">
           (Inclusive of all taxes)
         </span>

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import { ApiError } from "../api/http";
 import { categories, productImages, productVariants, products } from "../db/schema";
+import { evaluateBestOfferForVariant, getActiveOffers } from "../discounts/engine";
 import type { AnyDb } from "../orders/common";
 import { imageUrl } from "../storage/storage";
 import type { ProductVariant } from "../storefront/types";
@@ -102,6 +103,7 @@ function cardColumns(
 ) {
   return {
     id: products.id,
+    categoryId: products.categoryId,
     slug: products.slug,
     name: products.name,
     shortDescription: products.shortDescription,
@@ -119,12 +121,28 @@ function cardColumns(
 }
 
 type CardRow = {
-  id: string; slug: string; name: string; shortDescription: string | null; isFeatured: boolean;
+  id: string; categoryId: string; slug: string; name: string; shortDescription: string | null; isFeatured: boolean;
   categorySlug: string; categoryName: string; fromPricePaise: number | null; toPricePaise: number | null; fromMrpPaise: number | null;
   sizeCount: number; inStock: boolean; imageKey: string | null; imageAlt: string | null;
 };
 
 function toCard(r: CardRow, o: Base, variants: ProductVariant[] = []) {
+  let fromPricePaise = r.fromPricePaise;
+  let toPricePaise = r.toPricePaise;
+  let fromMrpPaise = r.fromMrpPaise;
+  let discountPercent = r.fromMrpPaise !== null && r.fromPricePaise !== null ? pct(r.fromMrpPaise, r.fromPricePaise) : 0;
+  let appliedOffer = null;
+
+  if (variants.length > 0) {
+    const minVariant = variants.reduce((min, curr) => (curr.pricePaise < min.pricePaise ? curr : min), variants[0]);
+    const maxVariant = variants.reduce((max, curr) => (curr.pricePaise > max.pricePaise ? curr : max), variants[0]);
+    fromPricePaise = minVariant.pricePaise;
+    toPricePaise = maxVariant.pricePaise;
+    fromMrpPaise = minVariant.mrpPaise;
+    discountPercent = minVariant.discountPercent;
+    appliedOffer = minVariant.offer ?? null;
+  }
+
   return {
     id: r.id,
     slug: r.slug,
@@ -133,11 +151,12 @@ function toCard(r: CardRow, o: Base, variants: ProductVariant[] = []) {
     isFeatured: r.isFeatured,
     category: { slug: r.categorySlug, name: r.categoryName },
     price: {
-      fromPaise: r.fromPricePaise,
-      toPaise: r.toPricePaise,
-      fromMrpPaise: r.fromMrpPaise,
-      discountPercent: r.fromMrpPaise !== null && r.fromPricePaise !== null ? pct(r.fromMrpPaise, r.fromPricePaise) : 0,
+      fromPaise: fromPricePaise,
+      toPaise: toPricePaise,
+      fromMrpPaise: fromMrpPaise,
+      discountPercent,
     },
+    appliedOffer,
     hasMultipleSizes: r.sizeCount > 1,
     inStock: r.inStock,
     image: r.imageKey ? { url: imageUrl(o.imageBaseUrl, r.imageKey)!, alt: r.imageAlt } : null,
@@ -247,6 +266,8 @@ export async function listPublicProducts(db: AnyDb, q: PublicProductQuery, o: Ba
     .where(cond);
 
   const productIds = rows.map((r) => r.id);
+  const activeOffers = await getActiveOffers(db);
+
   const allVariants = productIds.length > 0
     ? await db
         .select({
@@ -263,19 +284,24 @@ export async function listPublicProducts(db: AnyDb, q: PublicProductQuery, o: Ba
         .orderBy(asc(productVariants.pricePaise), asc(productVariants.id))
     : [];
 
+  const categoryByProduct = new Map(rows.map((r) => [r.id, r.categoryId]));
+
   const variantsByProduct = new Map<string, ProductVariant[]>();
   for (const v of allVariants) {
+    const catId = categoryByProduct.get(v.productId);
+    const offerEval = evaluateBestOfferForVariant(v, v.productId, catId, activeOffers);
     const list = variantsByProduct.get(v.productId) ?? [];
     list.push({
       id: v.id,
       label: v.label,
       weightGrams: v.weightGrams,
-      mrpPaise: v.mrpPaise,
-      pricePaise: v.pricePaise,
-      discountPercent: pct(v.mrpPaise, v.pricePaise),
+      mrpPaise: offerEval.effectiveMrpPaise,
+      pricePaise: offerEval.discountedPricePaise,
+      discountPercent: offerEval.discountPercent,
       inStock: v.stock > 0,
       lowStock: v.stock > 0 && v.stock <= LOW_STOCK_AT,
       maxQuantity: Math.max(0, Math.min(v.stock, MAX_QUANTITY)),
+      offer: offerEval.appliedOffer,
     });
     variantsByProduct.set(v.productId, list);
   }
@@ -365,22 +391,44 @@ export async function getPublicProduct(db: AnyDb, slug: string, o: Base) {
         .orderBy(asc(productVariants.pricePaise), asc(productVariants.id))
     : [];
 
+  const activeOffers = await getActiveOffers(db);
+
+  const relatedCategoryByProduct = new Map(relatedRows.map((r) => [r.id, r.categoryId]));
   const relatedVariantsByProduct = new Map<string, ProductVariant[]>();
   for (const v of relatedVariants) {
+    const catId = relatedCategoryByProduct.get(v.productId);
+    const offerEval = evaluateBestOfferForVariant(v, v.productId, catId, activeOffers);
     const list = relatedVariantsByProduct.get(v.productId) ?? [];
     list.push({
       id: v.id,
       label: v.label,
       weightGrams: v.weightGrams,
-      mrpPaise: v.mrpPaise,
-      pricePaise: v.pricePaise,
-      discountPercent: pct(v.mrpPaise, v.pricePaise),
+      mrpPaise: offerEval.effectiveMrpPaise,
+      pricePaise: offerEval.discountedPricePaise,
+      discountPercent: offerEval.discountPercent,
       inStock: v.stock > 0,
       lowStock: v.stock > 0 && v.stock <= LOW_STOCK_AT,
       maxQuantity: Math.max(0, Math.min(v.stock, MAX_QUANTITY)),
+      offer: offerEval.appliedOffer,
     });
     relatedVariantsByProduct.set(v.productId, list);
   }
+
+  const processedVariants = variants.map((v) => {
+    const offerEval = evaluateBestOfferForVariant(v, p.id, p.categoryId, activeOffers);
+    return {
+      id: v.id, // what the cart takes
+      label: v.label,
+      weightGrams: v.weightGrams,
+      mrpPaise: offerEval.effectiveMrpPaise,
+      pricePaise: offerEval.discountedPricePaise,
+      discountPercent: offerEval.discountPercent,
+      inStock: v.stock > 0,
+      lowStock: v.stock > 0 && v.stock <= LOW_STOCK_AT,
+      maxQuantity: Math.max(0, Math.min(v.stock, MAX_QUANTITY)), // what can be ordered right now
+      offer: offerEval.appliedOffer,
+    };
+  });
 
   return {
     id: p.id,
@@ -392,18 +440,8 @@ export async function getPublicProduct(db: AnyDb, slug: string, o: Base) {
     usage: p.usage,
     isFeatured: p.isFeatured,
     category: { slug: p.categorySlug, name: p.categoryName },
-    inStock: variants.some((v) => v.stock > 0),
-    variants: variants.map((v) => ({
-      id: v.id, // what the cart takes
-      label: v.label,
-      weightGrams: v.weightGrams,
-      mrpPaise: v.mrpPaise,
-      pricePaise: v.pricePaise,
-      discountPercent: pct(v.mrpPaise, v.pricePaise),
-      inStock: v.stock > 0,
-      lowStock: v.stock > 0 && v.stock <= LOW_STOCK_AT,
-      maxQuantity: Math.max(0, Math.min(v.stock, MAX_QUANTITY)), // what can be ordered right now
-    })),
+    inStock: processedVariants.some((v) => v.inStock),
+    variants: processedVariants,
     images: images.map((i) => ({ url: imageUrl(o.imageBaseUrl, i.r2Key)!, alt: i.alt, isPrimary: i.isPrimary })),
     related: relatedRows.map((r) => toCard(r, o, relatedVariantsByProduct.get(r.id) ?? [])),
   };

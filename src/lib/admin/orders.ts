@@ -86,6 +86,7 @@ export async function listAdminOrders(db: AnyDb, f: AdminOrderFilters) {
       customer: { id: profiles.id, name: profiles.name, email: profiles.email },
       shipTo: sql<string>`${orders.shippingAddress}->>'fullName'`,
       shipCity: sql<string>`${orders.shippingAddress}->>'city'`,
+      shippingAddress: orders.shippingAddress,
     })
     .from(orders)
     .innerJoin(profiles, eq(profiles.id, orders.profileId))

@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { cartItems, carts, productVariants, products } from "../db/schema";
+import { calculateDiscounts, type AppliedOffer } from "../discounts/engine";
 import type { AnyDb } from "../orders/common";
 import { CartError } from "./errors";
 
@@ -15,6 +16,7 @@ export type CartIssue = "UNAVAILABLE" | "OUT_OF_STOCK" | "INSUFFICIENT_STOCK" | 
 export type CartLineView = {
   variantId: string;
   productId: string;
+  productCategoryId?: string | null;
   productName: string;
   productSlug: string;
   variantLabel: string;
@@ -23,8 +25,18 @@ export type CartLineView = {
   quantity: number;
   /** Live catalogue prices (paise), never stored in the cart. */
   unitPricePaise: number;
+  discountedUnitPricePaise?: number;
   mrpPaise: number;
   lineTotalPaise: number;
+  discountedLineTotalPaise?: number;
+  offerDiscountPaise?: number;
+  appliedOffer?: {
+    id: string;
+    name: string;
+    scope: "product" | "category";
+    discountType: "percentage" | "flat";
+    value: number;
+  } | null;
   /** null = can be checked out as it is. */
   issue: CartIssue;
   /** How many could be bought right now (capped at the per-line maximum). 0 if unavailable. */
@@ -36,7 +48,10 @@ export type CartSummary = {
   totalQuantity: number;
   /** Sum of lines with no issue. Items + current prices ONLY: no shipping, offers or coupons. */
   subtotalPaise: number;
-  savingsPaise: number; // MRP minus price, same lines
+  offerDiscountPaise: number;
+  appliedOffers: AppliedOffer[];
+  savingsPaise: number; // MRP minus price + automatic offer savings
+  finalPayablePaise: number; // subtotal minus automatic offers
   hasIssues: boolean;
   canCheckout: boolean;
 };
@@ -53,6 +68,7 @@ type RawLine = {
   stock: number;
   variantActive: boolean;
   productId: string;
+  productCategoryId?: string | null;
   productName: string;
   productSlug: string;
   productActive: boolean;
@@ -67,6 +83,7 @@ export function toLineView(r: RawLine): CartLineView {
   return {
     variantId: r.variantId,
     productId: r.productId,
+    productCategoryId: r.productCategoryId ?? null,
     productName: r.productName,
     productSlug: r.productSlug,
     variantLabel: r.variantLabel,
@@ -82,27 +99,87 @@ export function toLineView(r: RawLine): CartLineView {
 }
 
 /**
- * The CART's total. Deliberately its own pure function: it knows nothing about shipping,
- * offers, coupons or payment, and checkout does not reuse it. The order recomputes its
- * numbers from the database inside its own transaction (see createPendingOrder), so the
- * cart can inform the customer but can never set what they are charged.
+ * The CART's total. Pure function with optional automatic offer discounts.
  */
-export function computeCartSummary(items: CartLineView[]): CartSummary {
+export function computeCartSummary(
+  items: CartLineView[],
+  offerDiscountPaise = 0,
+  appliedOffers: AppliedOffer[] = [],
+): CartSummary {
   const ok = items.filter((i) => i.issue === null);
+  const subtotalPaise = ok.reduce((n, i) => n + i.lineTotalPaise, 0);
+  const lineOfferDiscounts = ok.reduce((n, i) => n + (i.offerDiscountPaise ?? 0), 0);
+  const totalOfferDiscount = Math.max(offerDiscountPaise, lineOfferDiscounts);
+  const cappedOfferDiscountPaise = Math.min(subtotalPaise, Math.max(0, totalOfferDiscount));
+  const rawMrpSavings = ok.reduce((n, i) => n + Math.max(0, i.mrpPaise - i.unitPricePaise) * i.quantity, 0);
+
   return {
     lineCount: items.length,
     totalQuantity: items.reduce((n, i) => n + i.quantity, 0),
-    subtotalPaise: ok.reduce((n, i) => n + i.lineTotalPaise, 0),
-    savingsPaise: ok.reduce((n, i) => n + Math.max(0, i.mrpPaise - i.unitPricePaise) * i.quantity, 0),
+    subtotalPaise,
+    offerDiscountPaise: cappedOfferDiscountPaise,
+    appliedOffers,
+    savingsPaise: rawMrpSavings + cappedOfferDiscountPaise,
+    finalPayablePaise: Math.max(0, subtotalPaise - cappedOfferDiscountPaise),
     hasIssues: items.some((i) => i.issue !== null),
     canCheckout: items.length > 0 && items.every((i) => i.issue === null),
   };
 }
 
 /**
- * Current cart, re-validated against the catalogue on every read. Never writes (viewing an
- * empty cart doesn't create one). Scoped by profile_id in the query: there is no cart id
- * anywhere in the API, so there is nothing for a customer to substitute.
+ * Enriches cart lines with active automatic promotional offers and recalculates totals.
+ */
+export async function enrichCartLinesWithOffers(
+  db: AnyDb,
+  lines: CartLineView[],
+  categoryMap: Map<string, string | null>,
+): Promise<CartView> {
+  const okLines = lines.filter((i) => i.issue === null);
+  if (okLines.length === 0) {
+    return { items: lines, summary: computeCartSummary(lines) };
+  }
+
+  const discountItems = okLines.map((i) => ({
+    variantId: i.variantId,
+    productId: i.productId,
+    categoryId: categoryMap.get(i.productId) ?? i.productCategoryId ?? null,
+    quantity: i.quantity,
+    unitPricePaise: i.unitPricePaise,
+    lineTotalPaise: i.lineTotalPaise,
+  }));
+
+  const discounts = await calculateDiscounts(db, {
+    items: discountItems,
+    couponCode: null,
+  });
+
+  const lineDiscMap = new Map(discounts.lineDiscounts?.map((ld) => [ld.variantId, ld]) ?? []);
+
+  const enrichedItems = lines.map((item) => {
+    const ld = lineDiscMap.get(item.variantId);
+    if (!ld) return item;
+    const discountedUnitPricePaise = item.unitPricePaise - Math.round(ld.discountPaise / item.quantity);
+    return {
+      ...item,
+      discountedUnitPricePaise,
+      discountedLineTotalPaise: item.lineTotalPaise - ld.discountPaise,
+      offerDiscountPaise: ld.discountPaise,
+      appliedOffer: {
+        id: ld.offerId,
+        name: ld.offerName,
+        scope: ld.scope,
+        discountType: ld.discountType,
+        value: ld.value,
+      },
+    };
+  });
+
+  const summary = computeCartSummary(enrichedItems, discounts.offerDiscountPaise, discounts.appliedOffers);
+  return { items: enrichedItems, summary };
+}
+
+/**
+ * Current cart, re-validated against the catalogue and active promotional offers on every read.
  */
 export async function getCart(db: AnyDb, profileId: string): Promise<CartView> {
   const rows = await db
@@ -116,6 +193,7 @@ export async function getCart(db: AnyDb, profileId: string): Promise<CartView> {
       stock: productVariants.stock,
       variantActive: productVariants.isActive,
       productId: products.id,
+      productCategoryId: products.categoryId,
       productName: products.name,
       productSlug: products.slug,
       productActive: products.isActive,
@@ -133,7 +211,8 @@ export async function getCart(db: AnyDb, profileId: string): Promise<CartView> {
     .orderBy(asc(cartItems.createdAt), asc(cartItems.id));
 
   const items = rows.map(toLineView);
-  return { items, summary: computeCartSummary(items) };
+  const categoryMap = new Map(rows.map((r) => [r.productId, r.productCategoryId]));
+  return enrichCartLinesWithOffers(db, items, categoryMap);
 }
 
 /** The (variant, quantity) pairs checkout will try to buy. Plain data, no prices. */

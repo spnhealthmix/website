@@ -47,9 +47,15 @@ export function CheckoutForm() {
   const [couponInput, setCouponInput] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
   const [couponDiscountPaise, setCouponDiscountPaise] = useState<number>(0);
-  const [offerDiscountPaise, setOfferDiscountPaise] = useState<number>(0);
+  const [offerDiscountPaise, setOfferDiscountPaise] = useState<number>(cart?.summary?.offerDiscountPaise ?? 0);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cart?.summary && !appliedCouponCode) {
+      setOfferDiscountPaise(cart.summary.offerDiscountPaise ?? 0);
+    }
+  }, [cart?.summary?.offerDiscountPaise, appliedCouponCode]);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +90,7 @@ export function CheckoutForm() {
     setCouponDiscountPaise(0);
     setCouponInput("");
     setCouponError(null);
+    setOfferDiscountPaise(cart?.summary?.offerDiscountPaise ?? 0);
     showToast("Coupon removed.", "info");
   };
 
@@ -553,9 +560,21 @@ export function CheckoutForm() {
                     <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                       {item.variantLabel} &times; {item.quantity}
                     </p>
-                    <p className="mt-1 font-[family-name:var(--font-price)] text-xs font-semibold text-[var(--color-text-primary)]">
-                      {formatPrice(item.lineTotalPaise)}
-                    </p>
+                    <div className="mt-1 flex items-baseline gap-2 font-[family-name:var(--font-price)] text-xs">
+                      <span className="font-semibold text-[var(--color-text-primary)]">
+                        {formatPrice(item.discountedLineTotalPaise ?? item.lineTotalPaise)}
+                      </span>
+                      {item.discountedLineTotalPaise && item.discountedLineTotalPaise < item.lineTotalPaise ? (
+                        <span className="text-[var(--color-text-muted)] line-through font-normal">
+                          {formatPrice(item.lineTotalPaise)}
+                        </span>
+                      ) : null}
+                    </div>
+                    {item.appliedOffer && (
+                      <span className="inline-block text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 mt-1">
+                        🏷️ {item.appliedOffer.name}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

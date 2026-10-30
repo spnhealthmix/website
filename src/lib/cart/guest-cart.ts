@@ -4,6 +4,7 @@ import type { AnyDb } from "../orders/common";
 import {
   type CartView,
   computeCartSummary,
+  enrichCartLinesWithOffers,
   toLineView,
   assertQuantity,
   lookupBuyable,
@@ -99,6 +100,7 @@ export async function getGuestCart(db: AnyDb, items: GuestCartItem[]): Promise<C
       stock: productVariants.stock,
       variantActive: productVariants.isActive,
       productId: products.id,
+      productCategoryId: products.categoryId,
       productName: products.name,
       productSlug: products.slug,
       productActive: products.isActive,
@@ -124,7 +126,8 @@ export async function getGuestCart(db: AnyDb, items: GuestCartItem[]): Promise<C
     ];
   });
 
-  return { items: lineViews, summary: computeCartSummary(lineViews) };
+  const categoryMap = new Map(rows.map((r) => [r.productId, r.productCategoryId]));
+  return enrichCartLinesWithOffers(db, lineViews, categoryMap);
 }
 
 /**

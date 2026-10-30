@@ -78,6 +78,8 @@ async function handle(req: Request) {
   if (req.method !== "GET" && res.status >= 200 && res.status < 300) {
     try {
       revalidatePath("/", "layout");
+      revalidatePath("/shop");
+      revalidatePath("/combo-offers");
     } catch {
       // In standalone scripts or unit tests, safely continue
     }

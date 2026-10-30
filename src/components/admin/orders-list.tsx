@@ -16,8 +16,11 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Printer,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import type { AddressSnapshot } from "@/lib/db/schema";
+import { DEFAULT_BUSINESS_SETTINGS, type BusinessSettings } from "@/lib/settings/types";
 
 type AdminOrderListItem = {
   id: string;
@@ -35,6 +38,7 @@ type AdminOrderListItem = {
   };
   shipTo: string | null;
   shipCity: string | null;
+  shippingAddress?: AddressSnapshot | null;
 };
 
 type SummaryStats = {
@@ -114,6 +118,193 @@ function formatOrderDateTime(iso: string) {
   }
 }
 
+function AddressSlipCard({
+  order,
+  businessSettings,
+  isPreview = false,
+}: {
+  order: AdminOrderListItem;
+  businessSettings: BusinessSettings;
+  isPreview?: boolean;
+}) {
+  const address = order.shippingAddress;
+  const recipientName = address?.fullName || order.shipTo || order.customer.name || "Customer";
+  const recipientPhone = address?.phone || "Not provided";
+  const orderDate = new Date(order.createdAt).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return (
+    <div
+      className={`w-[520px] max-w-full bg-white border-2 border-black rounded-[6px] p-5 space-y-0 text-black box-border ${
+        isPreview ? "shadow-md" : ""
+      }`}
+      style={{
+        fontFamily:
+          'var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      {/* ── 1. Header Section ── */}
+      <div className="flex items-start justify-between pb-3">
+        <div>
+          <h1
+            className="text-[18px] font-[800] tracking-tight text-black uppercase leading-tight m-0"
+            style={{
+              fontFamily: 'var(--font-inter), "Inter", sans-serif',
+              fontWeight: 800,
+            }}
+          >
+            {businessSettings.businessName || "SPN HEALTH MIX"}
+          </h1>
+          <p className="text-[11.5px] font-medium text-black mt-0.5 m-0 leading-tight">
+            Delivery Address Slip
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#374151] block leading-tight">
+            ORDER ID
+          </span>
+          <span className="text-[13px] font-bold text-black mt-0.5 block leading-tight">
+            {order.orderNumber}
+          </span>
+        </div>
+      </div>
+
+      {/* Solid black divider underneath header */}
+      <div className="border-t-2 border-black w-full" />
+
+      {/* ── 2. Delivery Address Section (DELIVER TO) ── */}
+      <div className="pt-3.5 pb-3.5 space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-black block leading-none mb-1">
+            DELIVER TO:
+          </span>
+          <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#4B5563]">
+            Order Date: {orderDate}
+          </span>
+        </div>
+        <div
+          className="text-[16.5px] font-bold text-black leading-snug"
+          style={{ fontFamily: 'var(--font-pt-serif), "PT Serif", Georgia, serif' }}
+        >
+          {recipientName}
+        </div>
+        {address?.line1 ? (
+          <div className="text-[13px] font-normal text-black leading-tight">
+            {address.line1}
+          </div>
+        ) : (
+          !address && order.shipTo && (
+            <div className="text-[13px] font-normal text-black leading-tight">
+              {order.shipTo}
+            </div>
+          )
+        )}
+        {address?.line2 && (
+          <div className="text-[13px] font-normal text-black leading-tight">
+            {address.line2}
+          </div>
+        )}
+        {address?.landmark && (
+          <div className="text-[12.5px] font-normal text-black leading-tight italic">
+            Landmark: {address.landmark}
+          </div>
+        )}
+        <div className="text-[14px] font-bold text-black leading-tight pt-0.5">
+          {[address?.city || order.shipCity, address?.state]
+            .filter(Boolean)
+            .join(", ")}
+          {address?.pincode ? ` - ${address.pincode}` : ""}
+        </div>
+
+        {/* Customer Phone & Email */}
+        <div className="pt-2 flex items-center gap-4 text-[12.5px]">
+          <div>
+            <span className="text-[10px] font-bold uppercase text-[#4B5563] block">
+              CUSTOMER PHONE / MOBILE:
+            </span>
+            <span className="text-[13px] font-bold text-black tracking-wide">
+              {recipientPhone}
+            </span>
+          </div>
+          {order.customer.email && (
+            <div className="border-l border-[#9CA3AF] pl-4">
+              <span className="text-[10px] font-bold uppercase text-[#4B5563] block">
+                CUSTOMER EMAIL:
+              </span>
+              <span className="text-[11.5px] font-medium text-black">
+                {order.customer.email}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Thin light-gray dashed divider */}
+      <div className="border-t border-dashed border-[#9CA3AF] w-full" />
+
+      {/* ── 3. From / Company Address & Phone Number Section ── */}
+      <div className="py-3">
+        <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-none mb-1">
+          FROM (SENDER / RETURN ADDRESS):
+        </span>
+        <div className="text-[13px] font-bold text-black leading-tight">
+          {businessSettings.businessName || "SPN Health Mix"}
+        </div>
+        <div className="text-[12px] font-normal text-black leading-tight mt-1">
+          {[
+            businessSettings.address?.line1,
+            businessSettings.address?.line2,
+            businessSettings.address?.city,
+            businessSettings.address?.state,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          {businessSettings.address?.pincode ? ` - ${businessSettings.address.pincode}` : ""}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-black mt-1.5 font-medium">
+          {businessSettings.phone && (
+            <div>
+              <span className="font-bold">Phone:</span> {businessSettings.phone}
+            </div>
+          )}
+          {businessSettings.supportEmail && (
+            <div>
+              <span className="font-bold">Email:</span> {businessSettings.supportEmail}
+            </div>
+          )}
+          {businessSettings.fssaiNumber && (
+            <div>
+              <span className="font-bold">FSSAI:</span> {businessSettings.fssaiNumber}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Solid divider */}
+      <div className="border-t border-black w-full" />
+
+      {/* ── 4. Footer Section ── */}
+      <div className="pt-2.5 flex items-center justify-between text-[10.5px] font-normal text-black">
+        <div>
+          Total Items:{" "}
+          <span className="font-bold">
+            {order.itemCount} {order.itemCount === 1 ? "item" : "items"}
+          </span>
+        </div>
+        <div>
+          Order Status:{" "}
+          <span className="font-bold uppercase">
+            {order.status.replace(/_/g, " ")}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function OrdersList() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get("status") || "";
@@ -123,6 +314,35 @@ export function OrdersList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Business settings for print slip
+  const [businessSettings, setBusinessSettings] = useState<BusinessSettings>(DEFAULT_BUSINESS_SETTINGS);
+  const [printingOrder, setPrintingOrder] = useState<AdminOrderListItem | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/settings/business", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data === "object") {
+          setBusinessSettings((prev) => ({
+            ...prev,
+            ...data,
+            address: {
+              ...prev.address,
+              ...(data.address || {}),
+            },
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handlePrintOrder = (order: AdminOrderListItem) => {
+    setPrintingOrder(order);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
 
   // Summary Metrics State
   const [stats, setStats] = useState<SummaryStats>({
@@ -249,8 +469,8 @@ export function OrdersList() {
           break;
         }
         case "shipTo": {
-          const shipA = (a.shipTo || "").toLowerCase();
-          const shipB = (b.shipTo || "").toLowerCase();
+          const shipA = (a.shippingAddress?.fullName || a.shipTo || "").toLowerCase();
+          const shipB = (b.shippingAddress?.fullName || b.shipTo || "").toLowerCase();
           result = shipA.localeCompare(shipB);
           break;
         }
@@ -274,7 +494,8 @@ export function OrdersList() {
   const endItem = Math.min(page * pageSize, total);
 
   return (
-    <div className="space-y-6 pb-12 font-[family-name:var(--font-body)]">
+    <>
+      <div className="space-y-6 pb-12 font-[family-name:var(--font-body)] print:hidden">
       {/* ── 1. Page Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
         <div>
@@ -558,9 +779,14 @@ export function OrdersList() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-[#E8DFD4] bg-[#FFFBF7]/80 text-[#635850] text-[12px] font-semibold select-none">
-                  {/* Order # */}
+                  {/* Serial Number */}
+                  <th className="w-12 px-4 py-3.5 text-center font-semibold text-[#635850] whitespace-nowrap">
+                    #
+                  </th>
+
+                  {/* Order ID */}
                   <th className="px-5 py-3.5 font-semibold text-[#635850] whitespace-nowrap">
-                    Order #
+                    Order ID
                   </th>
 
                   {/* Date */}
@@ -577,7 +803,7 @@ export function OrdersList() {
                   {/* Customer */}
                   <th
                     onClick={() => handleSort("customer")}
-                    className="px-5 py-3.5 min-w-[200px] font-semibold text-[#635850] hover:text-[#1A1614] cursor-pointer transition-colors"
+                    className="px-5 py-3.5 min-w-[170px] font-semibold text-[#635850] hover:text-[#1A1614] cursor-pointer transition-colors"
                   >
                     <span className="inline-flex items-center gap-1">
                       Customer
@@ -585,13 +811,13 @@ export function OrdersList() {
                     </span>
                   </th>
 
-                  {/* Ship To */}
+                  {/* Delivery Address */}
                   <th
                     onClick={() => handleSort("shipTo")}
-                    className="px-5 py-3.5 min-w-[160px] font-semibold text-[#635850] hover:text-[#1A1614] cursor-pointer transition-colors"
+                    className="px-5 py-3.5 min-w-[260px] max-w-[320px] font-semibold text-[#635850] hover:text-[#1A1614] cursor-pointer transition-colors"
                   >
                     <span className="inline-flex items-center gap-1">
-                      Ship To
+                      Delivery Address
                       <ChevronsUpDown className="w-3.5 h-3.5 text-[#8C7E72]" />
                     </span>
                   </th>
@@ -637,7 +863,8 @@ export function OrdersList() {
               </thead>
 
               <tbody className="divide-y divide-[#E8DFD4]/70">
-                {sortedOrders.map((o) => {
+                {sortedOrders.map((o, idx) => {
+                  const serialNum = (page - 1) * pageSize + idx + 1;
                   const cfg = STATUS_CONFIG[o.status] || {
                     label: o.status,
                     badgeClass: "bg-[#F5F2EC] text-[#635850] border-[#E2DAD0]",
@@ -649,7 +876,12 @@ export function OrdersList() {
                       key={o.id}
                       className="hover:bg-[#FAF5EF]/50 transition-colors"
                     >
-                      {/* Order # */}
+                      {/* Serial Number */}
+                      <td className="w-12 px-4 py-4 text-center whitespace-nowrap text-[12px] font-medium text-[#8C7E72]">
+                        {serialNum}
+                      </td>
+
+                      {/* Order ID */}
                       <td className="px-5 py-4 whitespace-nowrap">
                         <Link
                           href={`/admin/orders/${o.id}`}
@@ -687,15 +919,44 @@ export function OrdersList() {
                         </div>
                       </td>
 
-                      {/* Ship To */}
-                      <td className="px-5 py-4 leading-snug">
-                        <span className="block text-[13px] font-semibold text-[#1A1614] truncate max-w-[180px]">
-                          {o.shipTo || "—"}
-                        </span>
-                        {o.shipCity && (
-                          <span className="block text-[11.5px] text-[#8C7E72] truncate max-w-[180px]">
-                            {o.shipCity}
-                          </span>
+                      {/* Delivery Address */}
+                      <td className="px-5 py-4 leading-snug min-w-[240px] max-w-[320px]">
+                        {o.shippingAddress ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-[13px] text-[#1A1614]">
+                                {o.shippingAddress.fullName || o.shipTo || o.customer.name || "Recipient"}
+                              </span>
+                              {o.shippingAddress.phone && (
+                                <span className="text-[11px] font-medium text-[#BF5330] bg-[#FDF3EE] px-1.5 py-0.5 rounded border border-[#F6DFD5]">
+                                  {o.shippingAddress.phone}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11.5px] text-[#635850] space-y-0.5">
+                              <div className="truncate" title={o.shippingAddress.line1}>
+                                {o.shippingAddress.line1}
+                              </div>
+                              {o.shippingAddress.line2 && (
+                                <div className="truncate text-[#8C7E72]" title={o.shippingAddress.line2}>
+                                  {o.shippingAddress.line2}
+                                </div>
+                              )}
+                              {o.shippingAddress.landmark && (
+                                <div className="text-[11px] italic text-[#8C7E72] truncate" title={`Landmark: ${o.shippingAddress.landmark}`}>
+                                  Landmark: {o.shippingAddress.landmark}
+                                </div>
+                              )}
+                              <div className="font-medium text-[#1A1614] text-[12px]">
+                                {[o.shippingAddress.city, o.shippingAddress.state].filter(Boolean).join(", ")}
+                                {o.shippingAddress.pincode ? ` - ${o.shippingAddress.pincode}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[#8C7E72] text-[12px] italic">
+                            {o.shipTo ? `${o.shipTo}${o.shipCity ? `, ${o.shipCity}` : ""}` : "No address available"}
+                          </div>
                         )}
                       </td>
 
@@ -720,13 +981,24 @@ export function OrdersList() {
 
                       {/* Action */}
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <Link
-                          href={`/admin/orders/${o.id}`}
-                          className="text-xs font-semibold text-[#BF5330] hover:text-[#8F3E20] transition-colors inline-flex items-center gap-1"
-                        >
-                          <span>View details</span>
-                          <span aria-hidden="true">&rarr;</span>
-                        </Link>
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handlePrintOrder(o)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#E8DFD4] bg-white hover:bg-[#FAF5EF] text-[#BF5330] hover:text-[#8F3E20] text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                            title={`Print delivery address slip for order ${o.orderNumber}`}
+                          >
+                            <Printer className="w-3.5 h-3.5" aria-hidden="true" />
+                            <span>Print</span>
+                          </button>
+                          <Link
+                            href={`/admin/orders/${o.id}`}
+                            className="text-xs font-semibold text-[#635850] hover:text-[#1A1614] transition-colors inline-flex items-center gap-1 px-1.5 py-1.5"
+                          >
+                            <span>View</span>
+                            <span aria-hidden="true">&rarr;</span>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -800,6 +1072,83 @@ export function OrdersList() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      {/* ── Screen Modal: Print Preview ── */}
+      {printingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs no-print">
+          <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full border border-[#E8DFD4] overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8DFD4] bg-[#FFFBF7]">
+              <div>
+                <h2
+                  className="text-base font-bold text-[#1A1614]"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  Print Delivery Address
+                </h2>
+                <p className="text-xs text-[#635850] mt-0.5">
+                  Order Reference:{" "}
+                  <span className="font-semibold text-[#BF5330] font-order-id">
+                    {printingOrder.orderNumber}
+                  </span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print / Save PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintingOrder(null)}
+                  className="p-1.5 text-[#8C7E72] hover:text-[#1A1614] rounded-lg hover:bg-[#FAF5EF] transition-colors cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto bg-[#F9F6F0]/40 flex justify-center">
+              <AddressSlipCard
+                order={printingOrder}
+                businessSettings={businessSettings}
+                isPreview
+              />
+            </div>
+
+            <div className="px-6 py-3 border-t border-[#E8DFD4] bg-[#FFFBF7] flex items-center justify-between text-xs text-[#635850]">
+              <span>
+                Tip: In the print dialog, select <strong>Save as PDF</strong> or choose your label printer.
+              </span>
+              <button
+                type="button"
+                onClick={() => setPrintingOrder(null)}
+                className="px-3 py-1.5 rounded-lg border border-[#E8DFD4] bg-white hover:bg-[#FAF5EF] text-[#635850] font-semibold text-xs cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dedicated Print-Only Shipping Address Slip ── */}
+      {printingOrder && (
+        <div
+          id="admin-address-slip-wrapper"
+          className="hidden print:block print:w-full print:m-0 print:p-0 text-black bg-white"
+        >
+          <AddressSlipCard
+            order={printingOrder}
+            businessSettings={businessSettings}
+          />
+        </div>
+      )}
+    </>
   );
 }

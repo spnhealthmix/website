@@ -14,9 +14,15 @@ export function CartView() {
   const [couponInput, setCouponInput] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
   const [couponDiscountPaise, setCouponDiscountPaise] = useState<number>(0);
-  const [offerDiscountPaise, setOfferDiscountPaise] = useState<number>(0);
+  const [offerDiscountPaise, setOfferDiscountPaise] = useState<number>(cart?.summary?.offerDiscountPaise ?? 0);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (cart?.summary && !appliedCouponCode) {
+      setOfferDiscountPaise(cart.summary.offerDiscountPaise ?? 0);
+    }
+  }, [cart?.summary?.offerDiscountPaise, appliedCouponCode]);
 
   if (isLoading && !cart) {
     return (
@@ -66,6 +72,7 @@ export function CartView() {
     setCouponDiscountPaise(0);
     setCouponInput("");
     setCouponError(null);
+    setOfferDiscountPaise(cart?.summary?.offerDiscountPaise ?? 0);
   };
 
   const handleClear = async () => {
@@ -335,14 +342,23 @@ function CartItemRow({
           </span>
           <div className="flex items-baseline gap-2 mt-0.5 font-[family-name:var(--font-price)]">
             <span className="font-semibold text-sm text-[var(--color-text-primary)]">
-              {formatPrice(item.unitPricePaise)}
+              {formatPrice(item.discountedUnitPricePaise ?? item.unitPricePaise)}
             </span>
-            {item.mrpPaise > item.unitPricePaise && (
+            {item.discountedUnitPricePaise && item.discountedUnitPricePaise < item.unitPricePaise ? (
+              <span className="text-xs text-[var(--color-text-muted)] line-through font-normal">
+                {formatPrice(item.mrpPaise > item.unitPricePaise ? item.mrpPaise : item.unitPricePaise)}
+              </span>
+            ) : item.mrpPaise > item.unitPricePaise ? (
               <span className="text-xs text-[var(--color-text-muted)] line-through font-normal">
                 {formatPrice(item.mrpPaise)}
               </span>
-            )}
+            ) : null}
           </div>
+          {item.appliedOffer && (
+            <span className="inline-block text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-1 self-start">
+              🏷️ {item.appliedOffer.name}
+            </span>
+          )}
 
           {/* Issue warnings */}
           {item.issue === "UNAVAILABLE" && (
@@ -400,8 +416,13 @@ function CartItemRow({
         {/* Line Total */}
         <div className="text-right min-w-[70px]">
           <span className="font-[family-name:var(--font-price)] font-semibold text-base text-[var(--color-text-primary)]">
-            {formatPrice(item.lineTotalPaise)}
+            {formatPrice(item.discountedLineTotalPaise ?? item.lineTotalPaise)}
           </span>
+          {item.discountedLineTotalPaise && item.discountedLineTotalPaise < item.lineTotalPaise ? (
+            <div className="text-[11px] text-[var(--color-text-muted)] line-through font-normal">
+              {formatPrice(item.lineTotalPaise)}
+            </div>
+          ) : null}
         </div>
 
         {/* Remove button */}

@@ -3,7 +3,7 @@ import { orders, payments, products, siteSettings } from "../db/schema";
 import {
   createAddress, deleteAddress, getOwnedAddress, listAddresses, setDefaultAddress, toSnapshot, updateAddress,
 } from "../customers/addresses";
-import { addCartItem, clearCart, getCart, loadCartLines, removeCartItem, setCartItemQuantity, type CartView } from "../cart/cart";
+import { addCartItem, clearCart, computeCartSummary, getCart, loadCartLines, removeCartItem, setCartItemQuantity, type CartView } from "../cart/cart";
 import {
   type GuestCartItem,
   extractGuestCartFromRequest,
@@ -261,7 +261,7 @@ export const deleteCart = (req: Request, deps: ApiDeps) =>
       return { cart: await clearCart(db, user.profileId) };
     }
     return {
-      cart: { items: [], summary: { lineCount: 0, totalQuantity: 0, subtotalPaise: 0, savingsPaise: 0, hasIssues: false, canCheckout: false } },
+      cart: { items: [], summary: computeCartSummary([]) },
       newGuestItems: null,
     };
   });

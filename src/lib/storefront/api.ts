@@ -17,6 +17,7 @@ import {
   listPublicCategories,
   listPublicProducts,
 } from "@/lib/catalogue/public";
+import { evaluateBestOfferForVariant, getActiveOffers } from "@/lib/discounts/engine";
 import type { PublicProductQuery } from "@/lib/catalogue/validation";
 import type {
   BestsellerProduct,
@@ -189,6 +190,7 @@ export const fetchBestsellerProducts = cache(async (): Promise<{
     const prods = await db
       .select({
         id: products.id,
+        categoryId: products.categoryId,
         slug: products.slug,
         name: products.name,
         shortDescription: products.shortDescription,
@@ -200,6 +202,9 @@ export const fetchBestsellerProducts = cache(async (): Promise<{
       .innerJoin(categories, eq(categories.id, products.categoryId))
       .where(and(eq(products.isActive, true), eq(categories.isActive, true)))
       .orderBy(asc(products.sortOrder), asc(products.name));
+
+    const activeOffers = await getActiveOffers(db);
+    const categoryByProduct = new Map(prods.map((p) => [p.id, p.categoryId]));
 
     const allVariants = await db
       .select({
@@ -228,20 +233,19 @@ export const fetchBestsellerProducts = cache(async (): Promise<{
     const variantsByProduct = new Map<string, ProductVariant[]>();
     for (const v of allVariants) {
       const list = variantsByProduct.get(v.productId) ?? [];
-      const discountPercent =
-        v.mrpPaise > v.pricePaise && v.mrpPaise > 0
-          ? Math.round(((v.mrpPaise - v.pricePaise) / v.mrpPaise) * 100)
-          : 0;
+      const catId = categoryByProduct.get(v.productId);
+      const offerEval = evaluateBestOfferForVariant(v, v.productId, catId, activeOffers);
       list.push({
         id: v.id,
         label: v.label,
         weightGrams: v.weightGrams,
-        mrpPaise: v.mrpPaise,
-        pricePaise: v.pricePaise,
-        discountPercent,
+        mrpPaise: offerEval.effectiveMrpPaise,
+        pricePaise: offerEval.discountedPricePaise,
+        discountPercent: offerEval.discountPercent,
         inStock: v.stock > 0,
         lowStock: v.stock > 0 && v.stock <= 5,
         maxQuantity: Math.max(0, Math.min(v.stock, 99)),
+        offer: offerEval.appliedOffer,
       });
       variantsByProduct.set(v.productId, list);
     }
@@ -414,6 +418,7 @@ export const fetchComboOffersData = cache(async (): Promise<Record<string, Combo
     const prods = await db
       .select({
         id: products.id,
+        categoryId: products.categoryId,
         slug: products.slug,
         name: products.name,
         shortDescription: products.shortDescription,
@@ -424,6 +429,9 @@ export const fetchComboOffersData = cache(async (): Promise<Record<string, Combo
     if (prods.length === 0) {
       return FALLBACK_COMBO_DATA;
     }
+
+    const activeOffers = await getActiveOffers(db);
+    const categoryByProduct = new Map(prods.map((p) => [p.id, p.categoryId]));
 
     const prodIds = prods.map((p) => p.id);
     const vars = await db
@@ -447,16 +455,20 @@ export const fetchComboOffersData = cache(async (): Promise<Record<string, Combo
     for (const p of prods) {
       const pVars = vars
         .filter((v) => v.productId === p.id)
-        .map((v) => ({
-          id: v.id,
-          sku: v.sku,
-          label: v.label,
-          weightGrams: v.weightGrams,
-          pricePaise: v.pricePaise,
-          mrpPaise: v.mrpPaise,
-          stock: v.stock,
-          inStock: v.stock > 0,
-        }));
+        .map((v) => {
+          const catId = categoryByProduct.get(v.productId);
+          const offerEval = evaluateBestOfferForVariant(v, v.productId, catId, activeOffers);
+          return {
+            id: v.id,
+            sku: v.sku,
+            label: v.label,
+            weightGrams: v.weightGrams,
+            pricePaise: offerEval.discountedPricePaise,
+            mrpPaise: offerEval.effectiveMrpPaise,
+            stock: v.stock,
+            inStock: v.stock > 0,
+          };
+        });
 
       result[p.slug] = {
         id: p.id,

@@ -280,6 +280,16 @@ export function ProductCard({ product, className, priority = false }: ProductCar
           />
         </button>
 
+        {/* Promotional offer badge overlay if active offer exists */}
+        {inStock && (selectedVariant?.offer || product.appliedOffer) ? (
+          <div className="absolute top-3.5 left-3.5 z-10 pointer-events-none">
+            <span className="font-[family-name:var(--font-body)] text-[10.5px] font-bold text-white bg-emerald-700/95 backdrop-blur-[2px] rounded-[6px] px-2 py-0.5 shadow-sm border border-emerald-600/50 flex items-center gap-1">
+              <span>🏷️</span>
+              <span>{(selectedVariant?.offer || product.appliedOffer)?.name}</span>
+            </span>
+          </div>
+        ) : null}
+
         {/* Subtle Out of Stock badge overlay if entire product is unavailable */}
         {!inStock ? (
           <div className="absolute inset-0 bg-[#FAF5EE]/75 backdrop-blur-[2px] flex items-end p-3 pointer-events-none">
@@ -504,11 +514,21 @@ export function ProductCard({ product, className, priority = false }: ProductCar
                     </span>
                   ) : null}
                 </div>
-                {hasGenuineDiscount && selectedVariant?.discountPercent ? (
-                  <span className="text-[10px] md:text-[10.5px] font-bold text-emerald-700 leading-tight mt-0.5">
-                    {selectedVariant.discountPercent}% OFF
-                  </span>
-                ) : null}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {hasGenuineDiscount && selectedVariant?.discountPercent ? (
+                    <span className="text-[10px] md:text-[10.5px] font-bold text-emerald-700 leading-tight mt-0.5">
+                      {selectedVariant.discountPercent}% OFF
+                    </span>
+                  ) : null}
+                  {selectedVariant?.offer?.name ? (
+                    <span
+                      className="text-[9.5px] font-medium text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 mt-0.5 truncate max-w-[120px]"
+                      title={selectedVariant.offer.name}
+                    >
+                      🏷️ {selectedVariant.offer.name}
+                    </span>
+                  ) : null}
+                </div>
               </>
             ) : null}
           </div>

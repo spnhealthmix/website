@@ -17,6 +17,15 @@ export type CategoriesResponse = {
   categories: CategoryCard[];
 };
 
+export type ProductOfferBadge = {
+  id: string;
+  name: string;
+  scope?: "product" | "category";
+  discountType: "percentage" | "flat";
+  value: number;
+  discountPaise?: number;
+};
+
 export type ProductPrice = {
   fromPaise: number | null;
   toPaise: number | null;
@@ -32,6 +41,7 @@ export type ProductCard = {
   isFeatured: boolean;
   category: { slug: string; name: string };
   price: ProductPrice;
+  appliedOffer?: ProductOfferBadge | null;
   hasMultipleSizes: boolean;
   inStock: boolean;
   image: { url: string; alt: string | null } | null;
@@ -69,6 +79,7 @@ export type ProductVariant = {
   inStock: boolean;
   lowStock: boolean;
   maxQuantity: number;
+  offer?: ProductOfferBadge | null;
 };
 
 export type ProductImage = {

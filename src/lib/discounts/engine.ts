@@ -11,6 +11,36 @@ export type DiscountItem = {
   lineTotalPaise: number;
 };
 
+export type ActiveOffer = typeof offers.$inferSelect;
+
+export type EvaluatedOffer = {
+  id: string;
+  name: string;
+  scope: "product" | "category";
+  discountType: "percentage" | "flat";
+  value: number;
+  discountPaise: number;
+};
+
+export type VariantOfferResult = {
+  basePricePaise: number;
+  mrpPaise: number;
+  discountedPricePaise: number;
+  effectiveMrpPaise: number;
+  discountPercent: number;
+  appliedOffer: EvaluatedOffer | null;
+};
+
+export type LineOfferDiscount = {
+  variantId: string;
+  offerId: string;
+  offerName: string;
+  scope: "product" | "category";
+  discountPaise: number;
+  discountType: "percentage" | "flat";
+  value: number;
+};
+
 export type AppliedOffer = {
   offerId: string;
   name: string;
@@ -37,11 +67,133 @@ export type DiscountCalculationResult = {
   finalPayablePaise: number;
   appliedOffers: AppliedOffer[];
   appliedCoupon: AppliedCoupon | null;
+  lineDiscounts?: LineOfferDiscount[];
   couponError?: string;
 };
 
 export function normalizeCouponCode(code: string): string {
   return code.trim().toUpperCase();
+}
+
+/**
+ * Fetch all currently active automatic promotional offers from the database.
+ * An offer is active if:
+ * 1. isActive is true.
+ * 2. startsAt <= now.
+ * 3. endsAt >= now.
+ */
+export async function getActiveOffers(db: AnyDb, now: Date = new Date()): Promise<ActiveOffer[]> {
+  return db
+    .select()
+    .from(offers)
+    .where(
+      and(
+        eq(offers.isActive, true),
+        lte(offers.startsAt, now),
+        gte(offers.endsAt, now),
+      ),
+    );
+}
+
+/**
+ * Evaluates the best promotional offer for a single variant according to strict priority rules:
+ * 1. Product-scope offers match variant's productId.
+ * 2. Category-scope offers match product's categoryId.
+ * 3. Maximum savings discount wins (no stacking of multiple automatic offers).
+ * 4. In case of identical discount amounts, product-scope takes priority over category-scope.
+ * 5. Effective MRP is set to variant mrpPaise (or basePricePaise if mrp is <= basePrice)
+ *    so the storefront consistently renders the original price with strikethrough.
+ */
+export function evaluateBestOfferForVariant(
+  variant: { pricePaise: number; mrpPaise: number },
+  productId: string,
+  categoryId: string | null | undefined,
+  activeOffers: ActiveOffer[],
+): VariantOfferResult {
+  const basePricePaise = variant.pricePaise;
+  const mrpPaise = variant.mrpPaise;
+
+  const matching = activeOffers.filter((o) => {
+    if (o.scope === "product" && o.productId === productId) return true;
+    if (o.scope === "category" && categoryId && o.categoryId === categoryId) return true;
+    return false;
+  });
+
+  if (matching.length === 0) {
+    const discountPercent =
+      mrpPaise > basePricePaise && mrpPaise > 0
+        ? Math.round(((mrpPaise - basePricePaise) / mrpPaise) * 100)
+        : 0;
+    return {
+      basePricePaise,
+      mrpPaise,
+      discountedPricePaise: basePricePaise,
+      effectiveMrpPaise: mrpPaise,
+      discountPercent,
+      appliedOffer: null,
+    };
+  }
+
+  let bestOffer: ActiveOffer | null = null;
+  let bestDiscount = 0;
+
+  for (const off of matching) {
+    let disc = 0;
+    if (off.discountType === "percentage") {
+      disc = Math.round((basePricePaise * off.value) / 100);
+    } else {
+      disc = Math.min(basePricePaise, off.value);
+    }
+    disc = Math.max(0, Math.min(basePricePaise, disc));
+
+    if (disc > bestDiscount) {
+      bestDiscount = disc;
+      bestOffer = off;
+    } else if (disc === bestDiscount && disc > 0 && bestOffer) {
+      if (off.scope === "product" && bestOffer.scope === "category") {
+        bestOffer = off;
+      }
+    }
+  }
+
+  if (bestOffer && bestDiscount > 0) {
+    const discountedPricePaise = basePricePaise - bestDiscount;
+    const effectiveMrpPaise = mrpPaise > basePricePaise ? mrpPaise : basePricePaise;
+    const discountPercent =
+      effectiveMrpPaise > discountedPricePaise && effectiveMrpPaise > 0
+        ? Math.round(((effectiveMrpPaise - discountedPricePaise) / effectiveMrpPaise) * 100)
+        : 0;
+
+    return {
+      basePricePaise,
+      mrpPaise,
+      discountedPricePaise,
+      effectiveMrpPaise,
+      discountPercent,
+      appliedOffer: {
+        id: bestOffer.id,
+        name: bestOffer.name,
+        scope: bestOffer.scope,
+        discountType: bestOffer.discountType,
+        value: bestOffer.value,
+        discountPaise: bestDiscount,
+      },
+    };
+  }
+
+  const discountPercent =
+    mrpPaise > basePricePaise && mrpPaise > 0
+      ? Math.round(((mrpPaise - basePricePaise) / mrpPaise) * 100)
+      : 0;
+
+  return {
+    basePricePaise,
+    mrpPaise,
+    discountedPricePaise: basePricePaise,
+    effectiveMrpPaise: mrpPaise,
+    discountPercent,
+    appliedOffer: null,
+  };
 }
 
 /**
@@ -113,16 +265,7 @@ export async function calculateDiscounts(
   );
 
   // 2. Query active offers within validity window
-  const activeOffers = await db
-    .select()
-    .from(offers)
-    .where(
-      and(
-        eq(offers.isActive, true),
-        lte(offers.startsAt, now),
-        gte(offers.endsAt, now),
-      ),
-    );
+  const activeOffers = await getActiveOffers(db, now);
 
   // Filter offers matching our products or categories
   const candidateOffers = activeOffers.filter((o) => {
@@ -133,6 +276,7 @@ export async function calculateDiscounts(
 
   // Calculate line-level offer discounts
   const appliedOffersMap = new Map<string, AppliedOffer>();
+  const lineDiscounts: LineOfferDiscount[] = [];
   let offerDiscountPaise = 0;
 
   for (const item of itemsWithCategory) {
@@ -162,6 +306,11 @@ export async function calculateDiscounts(
       if (disc > bestDiscount) {
         bestDiscount = disc;
         bestOffer = off;
+      } else if (disc === bestDiscount && disc > 0 && bestOffer) {
+        // Product-level offer takes priority over category-level offer on ties
+        if (off.scope === "product" && bestOffer.scope === "category") {
+          bestOffer = off;
+        }
       }
     }
 
@@ -182,6 +331,16 @@ export async function calculateDiscounts(
           discountPaise: bestDiscount,
         });
       }
+
+      lineDiscounts.push({
+        variantId: item.variantId,
+        offerId: bestOffer.id,
+        offerName: bestOffer.name,
+        scope: bestOffer.scope,
+        discountPaise: bestDiscount,
+        discountType: bestOffer.discountType,
+        value: bestOffer.value,
+      });
     }
   }
 
@@ -250,6 +409,7 @@ export async function calculateDiscounts(
     finalPayablePaise,
     appliedOffers: Array.from(appliedOffersMap.values()),
     appliedCoupon,
+    lineDiscounts,
     couponError,
   };
 }
