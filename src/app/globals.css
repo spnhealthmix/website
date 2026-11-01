@@ -376,10 +376,19 @@
     display: block !important;
   }
 
-  /* Prevent page breaks inside the slip and ensure 1 single page */
+  /* Prevent page breaks inside each slip and handle multiple slips */
   #admin-address-slip-wrapper {
+    margin: 0 auto !important;
+  }
+
+  .admin-address-slip-item {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     margin: 0 auto !important;
+  }
+
+  .admin-address-slip-item:not(:last-child) {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }

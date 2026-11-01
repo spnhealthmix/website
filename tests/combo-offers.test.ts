@@ -273,4 +273,38 @@ describe("Combo Offers - Add to Cart Mutation & Origin Validation", () => {
   });
 });
 
+describe("Admin Order Detail - Product Image Resolution", () => {
+  it("resolves combo offer images to dedicated hero assets", async () => {
+    const { resolveOrderItemImageUrl } = await import("../src/lib/admin/orders");
+    expect(resolveOrderItemImageUrl("Family Combo Offer")).toBe("/hero1.jpeg");
+    expect(resolveOrderItemImageUrl("Fast Moving Sweet Laddu's Combo")).toBe("/hero2.jpeg");
+    expect(resolveOrderItemImageUrl("Spicy Podi Varieties Combo")).toBe("/hero3.jpeg");
+    expect(resolveOrderItemImageUrl("Nendram Banana Chips")).toBe("/hero4.jpeg");
+  });
+
+  it("resolves PNG laddu products to main.png instead of 404ing on .jpg", async () => {
+    const { resolveOrderItemImageUrl } = await import("../src/lib/admin/orders");
+    expect(resolveOrderItemImageUrl("Rava Laddu")).toBe("/products/rava-laddu/main.png");
+    expect(resolveOrderItemImageUrl("Karuppu Kavuni Laddu")).toBe("/products/karuppu-kavuni-laddu/main.png");
+    expect(resolveOrderItemImageUrl("Sprouted Ragi Choco Laddu")).toBe("/products/sprouted-ragi-choco-laddu/main.png");
+  });
+
+  it("resolves standard catalogue products to /products/${slug}/main.jpg", async () => {
+    const { resolveOrderItemImageUrl } = await import("../src/lib/admin/orders");
+    expect(resolveOrderItemImageUrl("Nendram Raw Banana Powder")).toBe(
+      "/products/nendram-raw-banana-powder/main.jpg"
+    );
+    expect(resolveOrderItemImageUrl("ABC Malt – Nuts Mixed Powder")).toBe(
+      "/products/abc-malt-nuts-mixed-powder/main.jpg"
+    );
+  });
+
+  it("resolves items with combo SKU even if product name is generic or snapshot variant", async () => {
+    const { resolveOrderItemImageUrl } = await import("../src/lib/admin/orders");
+    expect(resolveOrderItemImageUrl("Special Offer Pack", "family-combo-12in1")).toBe("/hero1.jpeg");
+    expect(resolveOrderItemImageUrl("Gift Hamper", "sweet-laddus-combo-1kg")).toBe("/hero2.jpeg");
+  });
+});
+
+
 

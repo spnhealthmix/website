@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { ApiError } from "../api/http";
 import {
-  adminAuditLog, orderItems, orders, payments, productVariants, profiles, shipmentTrackingEvents, shipments,
+  adminAuditLog, orderItems, orders, payments, productImages, products, productVariants, profiles, shipmentTrackingEvents, shipments,
 } from "../db/schema";
+import { imageUrl } from "../storage/storage";
 import type { AnyDb } from "../orders/common";
 import { releaseOrderStock } from "../orders/stock";
 import { writeAudit } from "./audit";
@@ -53,6 +54,130 @@ export type AdminOrderFilters = {
   offset: number;
 };
 
+function slugifyName(name: string): string {
+  return (name || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+export function resolveOrderItemImageUrl(nameOrSlug: string, sku?: string | null): string | null {
+  const s = slugifyName(nameOrSlug);
+  const skuSlug = sku ? slugifyName(sku) : "";
+
+  // Combo specials
+  if (s.includes("family-combo") || skuSlug.includes("family-combo")) return "/hero1.jpeg";
+  if (s.includes("sweet-laddu") || s.includes("laddus-combo") || skuSlug.includes("sweet-laddu")) return "/hero2.jpeg";
+  if (s.includes("spicy-podi") || s.includes("podi-varieties") || skuSlug.includes("spicy-podi")) return "/hero3.jpeg";
+  if (s.includes("banana-chip") || s.includes("nendram-banana-chip") || skuSlug.includes("banana-chip")) return "/hero4.jpeg";
+
+  // PNG laddu specials
+  if (s.includes("karuppu-kavuni-laddu") || skuSlug.includes("karuppu-kavuni-laddu")) {
+    return "/products/karuppu-kavuni-laddu/main.png";
+  }
+  if (s.includes("rava-laddu") || skuSlug.includes("rava-laddu")) {
+    return "/products/rava-laddu/main.png";
+  }
+  if (s.includes("sprouted-ragi-choco-laddu") || skuSlug.includes("sprouted-ragi-choco-laddu")) {
+    return "/products/sprouted-ragi-choco-laddu/main.png";
+  }
+
+  // Catalogue product
+  if (s) {
+    return `/products/${s}/main.jpg`;
+  }
+  return null;
+}
+
+export async function attachItemImages<
+  T extends { productId: string | null; productName: string; sku?: string | null }
+>(
+  db: AnyDb,
+  items: T[],
+  imageBaseUrl: string | undefined = process.env.R2_PUBLIC_BASE_URL,
+): Promise<Array<T & { imageUrl: string | null }>> {
+  if (items.length === 0) return [];
+
+  const productIds = Array.from(
+    new Set(items.map((i) => i.productId).filter((id): id is string => Boolean(id))),
+  );
+
+  const imagesMap = new Map<string, string>();
+  const productSlugMap = new Map<string, string>();
+
+  if (productIds.length > 0) {
+    const imgs = await db
+      .select({
+        productId: productImages.productId,
+        r2Key: productImages.r2Key,
+        isPrimary: productImages.isPrimary,
+        sortOrder: productImages.sortOrder,
+      })
+      .from(productImages)
+      .where(inArray(productImages.productId, productIds))
+      .orderBy(desc(productImages.isPrimary), asc(productImages.sortOrder));
+
+    for (const img of imgs) {
+      if (img.productId && img.r2Key && !imagesMap.has(img.productId)) {
+        let url = imageUrl(imageBaseUrl, img.r2Key);
+        if (url) {
+          if (
+            url.includes("karuppu-kavuni-laddu") ||
+            url.includes("rava-laddu") ||
+            url.includes("sprouted-ragi-choco-laddu")
+          ) {
+            url = url.replace(/\.jpg$/, ".png");
+          }
+          imagesMap.set(img.productId, url);
+        }
+      }
+    }
+
+    const prods = await db
+      .select({ id: products.id, slug: products.slug })
+      .from(products)
+      .where(inArray(products.id, productIds));
+
+    for (const p of prods) {
+      if (p.slug) {
+        productSlugMap.set(p.id, p.slug);
+      }
+    }
+  }
+
+  return items.map((item) => {
+    // Check combo first, as combos shouldn't point to /products/...
+    const comboOrStatic = resolveOrderItemImageUrl(
+      (item.productId && productSlugMap.get(item.productId)) || item.productName,
+      item.sku,
+    );
+    const isCombo =
+      comboOrStatic === "/hero1.jpeg" ||
+      comboOrStatic === "/hero2.jpeg" ||
+      comboOrStatic === "/hero3.jpeg" ||
+      comboOrStatic === "/hero4.jpeg";
+
+    if (isCombo) {
+      return { ...item, imageUrl: comboOrStatic };
+    }
+
+    let resolvedUrl: string | null = null;
+    if (item.productId && imagesMap.has(item.productId)) {
+      resolvedUrl = imagesMap.get(item.productId)!;
+    }
+
+    if (!resolvedUrl) {
+      resolvedUrl = comboOrStatic;
+    }
+
+    return {
+      ...item,
+      imageUrl: resolvedUrl,
+    };
+  });
+}
+
 export async function listAdminOrders(db: AnyDb, f: AdminOrderFilters) {
   const where: (SQL | undefined)[] = [];
   if (f.status) where.push(eq(orders.status, f.status));
@@ -101,7 +226,60 @@ export async function listAdminOrders(db: AnyDb, f: AdminOrderFilters) {
     .innerJoin(profiles, eq(profiles.id, orders.profileId))
     .where(cond);
 
-  return { orders: rows.map((r) => ({ ...r, needsAttention: r.attentionReason !== null })), total, limit: f.limit, offset: f.offset };
+  const orderIds = rows.map((r) => r.id);
+  const itemsByOrder = new Map<
+    string,
+    Array<{
+      id: string;
+      productId: string | null;
+      variantId: string | null;
+      productName: string;
+      variantLabel: string;
+      sku: string;
+      unitPricePaise: number;
+      quantity: number;
+      lineTotalPaise: number;
+      imageUrl: string | null;
+    }>
+  >();
+
+  if (orderIds.length > 0) {
+    const allItems = await db
+      .select({
+        id: orderItems.id,
+        orderId: orderItems.orderId,
+        productId: orderItems.productId,
+        variantId: orderItems.variantId,
+        productName: orderItems.productName,
+        variantLabel: orderItems.variantLabel,
+        sku: orderItems.sku,
+        unitPricePaise: orderItems.unitPricePaise,
+        quantity: orderItems.quantity,
+        lineTotalPaise: orderItems.lineTotalPaise,
+      })
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds))
+      .orderBy(asc(orderItems.id));
+
+    const allItemsWithImages = await attachItemImages(db, allItems);
+
+    for (const it of allItemsWithImages) {
+      const list = itemsByOrder.get(it.orderId) || [];
+      list.push(it);
+      itemsByOrder.set(it.orderId, list);
+    }
+  }
+
+  return {
+    orders: rows.map((r) => ({
+      ...r,
+      needsAttention: r.attentionReason !== null,
+      items: itemsByOrder.get(r.id) || [],
+    })),
+    total,
+    limit: f.limit,
+    offset: f.offset,
+  };
 }
 
 export async function getAdminOrder(db: AnyDb, orderId: string) {
@@ -115,7 +293,8 @@ export async function getAdminOrder(db: AnyDb, orderId: string) {
     .where(eq(orders.id, orderId));
   if (!row) throw new ApiError(404, "ORDER_NOT_FOUND", "Order not found.");
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const rawItems = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const items = await attachItemImages(db, rawItems);
   const pays = await db.select().from(payments).where(eq(payments.orderId, orderId)).orderBy(asc(payments.createdAt));
   const ships = await db.select().from(shipments).where(eq(shipments.orderId, orderId)).orderBy(desc(shipments.createdAt));
   const events = ships.length

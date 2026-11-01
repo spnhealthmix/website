@@ -72,14 +72,21 @@ export function assertAdminOriginAllowed(req: Request, configuredOrigins?: strin
   }
 
   let canonicalOrigin: string;
+  let originUrl: URL;
   try {
-    const url = new URL(origin);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
+    originUrl = new URL(origin);
+    if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") {
       throw new Error("Invalid scheme");
     }
-    canonicalOrigin = url.origin.toLowerCase();
+    canonicalOrigin = originUrl.origin.toLowerCase();
   } catch {
     throw new ApiError(403, "FORBIDDEN_ORIGIN", "Malformed Origin header.");
+  }
+
+  // Allow loopback origins when running in non-production or when targeting a local development server
+  const isTargetingLocalhost = isLocalhostHost(req.headers.get("host"));
+  if ((process.env.NODE_ENV !== "production" || isTargetingLocalhost) && isLocalDevelopmentOrigin(originUrl)) {
+    return;
   }
 
   if (!allowlist.includes(canonicalOrigin)) {

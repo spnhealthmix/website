@@ -37,6 +37,7 @@ type OrderItem = {
   pricePaise?: number;
   lineTotalPaise?: number;
   totalPaise?: number;
+  imageUrl?: string | null;
 };
 
 type Payment = {
@@ -177,15 +178,93 @@ function safeFormatPrice(paise: number | null | undefined): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
-/** Generates product image URL from slug matching public/products catalogue */
-function getProductImage(productName: string): string {
+/** Resolves fallback product image from product name and SKU */
+function getProductFallbackImage(productName: string, sku?: string | null): string {
   const slug = (productName || "")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+  const skuSlug = (sku || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  // Combo specials
+  if (slug.includes("family-combo") || skuSlug.includes("family-combo")) return "/hero1.jpeg";
+  if (slug.includes("sweet-laddu") || slug.includes("laddus-combo") || skuSlug.includes("sweet-laddu")) return "/hero2.jpeg";
+  if (slug.includes("spicy-podi") || slug.includes("podi-varieties") || skuSlug.includes("spicy-podi")) return "/hero3.jpeg";
+  if (slug.includes("banana-chip") || slug.includes("nendram-banana-chip") || skuSlug.includes("banana-chip")) return "/hero4.jpeg";
+
+  // PNG laddu specials
+  if (
+    slug.includes("karuppu-kavuni-laddu") ||
+    slug.includes("rava-laddu") ||
+    slug.includes("sprouted-ragi-choco-laddu") ||
+    skuSlug.includes("karuppu-kavuni-laddu") ||
+    skuSlug.includes("rava-laddu") ||
+    skuSlug.includes("sprouted-ragi-choco-laddu")
+  ) {
+    return `/products/${slug}/main.png`;
+  }
+
   return `/products/${slug}/main.jpg`;
+}
+
+function OrderItemImage({ item, productName }: { item: OrderItem; productName: string }) {
+  const [errorCount, setErrorCount] = useState(0);
+  const [src, setSrc] = useState<string | null>(() => {
+    return item.imageUrl || getProductFallbackImage(productName, item.sku);
+  });
+
+  useEffect(() => {
+    setErrorCount(0);
+    setSrc(item.imageUrl || getProductFallbackImage(productName, item.sku));
+  }, [item.imageUrl, productName, item.sku]);
+
+  const handleError = () => {
+    if (errorCount === 0 && src) {
+      setErrorCount(1);
+      // If .jpg failed, try .png
+      if (src.endsWith(".jpg")) {
+        setSrc(src.replace(/\.jpg$/, ".png"));
+        return;
+      }
+      // If .png failed, try .jpg
+      if (src.endsWith(".png")) {
+        setSrc(src.replace(/\.png$/, ".jpg"));
+        return;
+      }
+      // If initial item.imageUrl failed, try fallback resolver
+      const fb = getProductFallbackImage(productName, item.sku);
+      if (fb !== src) {
+        setSrc(fb);
+        return;
+      }
+    }
+    // Failed all options
+    setSrc(null);
+  };
+
+  return (
+    <div className="relative w-12 h-12 rounded-[6px] bg-[#FAF5EF] border border-[#E8DFD4] overflow-hidden shrink-0 flex items-center justify-center">
+      {src ? (
+        <Image
+          src={src}
+          alt={productName}
+          fill
+          sizes="48px"
+          className="object-contain p-0.5"
+          unoptimized
+          onError={handleError}
+        />
+      ) : (
+        <Package className="w-5 h-5 text-[#BF5330]/40" />
+      )}
+    </div>
+  );
 }
 
 export function OrderDetailView({ orderId }: { orderId: string }) {
@@ -655,27 +734,11 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                       item.lineTotalPaise ??
                       item.totalPaise ??
                       unitPricePaise * (item.quantity || 1);
-                    const imageSrc = getProductImage(productName);
-
                     return (
                       <tr key={item.id} className="text-sm">
                         <td className="py-4 pr-4">
                           <div className="flex items-center gap-3">
-                            <div className="relative w-12 h-12 rounded-[6px] bg-[#FAF5EF] border border-[#E8DFD4] overflow-hidden shrink-0">
-                              <Image
-                                src={imageSrc}
-                                alt={productName}
-                                fill
-                                sizes="48px"
-                                className="object-cover"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLElement).style.display = "none";
-                                }}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center text-[#BF5330]/40 -z-10">
-                                <Package className="w-5 h-5" />
-                              </div>
-                            </div>
+                            <OrderItemImage item={item} productName={productName} />
                             <span className="font-semibold text-[#1A1614] text-[13.5px] leading-snug">
                               {productName}
                             </span>

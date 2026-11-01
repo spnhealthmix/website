@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -22,6 +22,19 @@ import { formatPrice } from "@/lib/utils";
 import type { AddressSnapshot } from "@/lib/db/schema";
 import { DEFAULT_BUSINESS_SETTINGS, type BusinessSettings } from "@/lib/settings/types";
 
+type AdminOrderItem = {
+  id: string;
+  productId: string | null;
+  variantId: string | null;
+  productName: string;
+  variantLabel: string;
+  sku: string;
+  unitPricePaise: number;
+  quantity: number;
+  lineTotalPaise: number;
+  imageUrl?: string | null;
+};
+
 type AdminOrderListItem = {
   id: string;
   orderNumber: string;
@@ -39,6 +52,8 @@ type AdminOrderListItem = {
   shipTo: string | null;
   shipCity: string | null;
   shippingAddress?: AddressSnapshot | null;
+  serialNumber?: number;
+  items?: AdminOrderItem[];
 };
 
 type SummaryStats = {
@@ -135,6 +150,12 @@ function AddressSlipCard({
     month: "short",
     year: "numeric",
   });
+
+  const items = order.items || [];
+  const totalItemsCount =
+    items.length > 0
+      ? items.reduce((sum, it) => sum + (it.quantity || 0), 0)
+      : order.itemCount || 0;
 
   return (
     <div
@@ -245,7 +266,92 @@ function AddressSlipCard({
       {/* Thin light-gray dashed divider */}
       <div className="border-t border-dashed border-[#9CA3AF] w-full" />
 
-      {/* ── 3. From / Company Address & Phone Number Section ── */}
+      {/* ── 3. Ordered Items Section ── */}
+      <div className="py-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-black block leading-none">
+            ORDERED ITEMS:
+          </span>
+          <span className="text-[10.5px] font-medium text-[#4B5563]">
+            {items.length} {items.length === 1 ? "product" : "products"} ({totalItemsCount} {totalItemsCount === 1 ? "item" : "items"})
+          </span>
+        </div>
+
+        <div className="border border-black rounded-[4px] overflow-hidden">
+          <table className="w-full border-collapse text-left text-black text-[11px]">
+            <thead>
+              <tr className="bg-[#F3F4F6] border-b border-black font-bold uppercase tracking-wider text-[10px]">
+                <th className="py-1.5 px-2.5">Product / Pack Size</th>
+                <th className="py-1.5 px-2 text-center w-14">Qty</th>
+                <th className="py-1.5 px-2 text-right w-20">Unit Price</th>
+                <th className="py-1.5 px-2.5 text-right w-24">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E5E7EB]">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-2.5 px-2.5 text-center text-[#4B5563] italic">
+                    {order.itemCount} item(s) ordered
+                  </td>
+                </tr>
+              ) : (
+                items.map((it, idx) => {
+                  const hasVariant =
+                    it.variantLabel &&
+                    it.variantLabel.trim() &&
+                    !["default", "standard", "default title"].includes(
+                      it.variantLabel.trim().toLowerCase()
+                    ) &&
+                    it.variantLabel.trim().toLowerCase() !== it.productName.trim().toLowerCase();
+
+                  return (
+                    <tr key={it.id || idx} className="leading-tight">
+                      <td className="py-1.5 px-2.5">
+                        <span className="font-bold text-black">{it.productName}</span>
+                        {hasVariant && (
+                          <span className="text-[10px] text-[#4B5563] ml-1.5 font-normal">
+                            ({it.variantLabel})
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5 px-2 text-center font-semibold text-black">
+                        {it.quantity}
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-mono text-[10.5px] text-black">
+                        {formatPrice(it.unitPricePaise)}
+                      </td>
+                      <td className="py-1.5 px-2.5 text-right font-mono font-bold text-[10.5px] text-black">
+                        {formatPrice(it.lineTotalPaise || it.unitPricePaise * it.quantity)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-[#FAF9F6] border-t border-black font-bold text-[10.5px]">
+                <td className="py-1.5 px-2.5 text-black">
+                  Total Items: {totalItemsCount}
+                </td>
+                <td className="py-1.5 px-2 text-center text-black">
+                  {totalItemsCount}
+                </td>
+                <td className="py-1.5 px-2 text-right uppercase text-[9.5px] text-[#4B5563]">
+                  Order Total:
+                </td>
+                <td className="py-1.5 px-2.5 text-right font-mono text-[11px] text-black">
+                  {formatPrice(order.totalPaise)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Thin light-gray dashed divider */}
+      <div className="border-t border-dashed border-[#9CA3AF] w-full" />
+
+      {/* ── 4. From / Company Address & Phone Number Section ── */}
       <div className="py-3">
         <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#374151] block leading-none mb-1">
           FROM (SENDER / RETURN ADDRESS):
@@ -286,12 +392,18 @@ function AddressSlipCard({
       {/* Solid divider */}
       <div className="border-t border-black w-full" />
 
-      {/* ── 4. Footer Section ── */}
-      <div className="pt-2.5 flex items-center justify-between text-[10.5px] font-normal text-black">
+      {/* ── 5. Footer Section ── */}
+      <div className="pt-2.5 flex items-center justify-between text-[11px] font-normal text-black">
         <div>
           Total Items:{" "}
           <span className="font-bold">
-            {order.itemCount} {order.itemCount === 1 ? "item" : "items"}
+            {totalItemsCount} {totalItemsCount === 1 ? "item" : "items"}
+          </span>
+        </div>
+        <div>
+          Order Total:{" "}
+          <span className="font-bold font-mono text-[12.5px]">
+            {formatPrice(order.totalPaise)}
           </span>
         </div>
         <div>
@@ -317,7 +429,11 @@ export function OrdersList() {
 
   // Business settings for print slip
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>(DEFAULT_BUSINESS_SETTINGS);
-  const [printingOrder, setPrintingOrder] = useState<AdminOrderListItem | null>(null);
+  const [printingOrders, setPrintingOrders] = useState<AdminOrderListItem[]>([]);
+
+  // Row Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/admin/settings/business", { cache: "no-store" })
@@ -336,13 +452,6 @@ export function OrdersList() {
       })
       .catch(() => {});
   }, []);
-
-  const handlePrintOrder = (order: AdminOrderListItem) => {
-    setPrintingOrder(order);
-    setTimeout(() => {
-      window.print();
-    }, 150);
-  };
 
   // Summary Metrics State
   const [stats, setStats] = useState<SummaryStats>({
@@ -387,8 +496,14 @@ export function OrdersList() {
       }
 
       const data = await ordersRes.json();
-      setOrders(data.orders || []);
-      setTotal(data.total || 0);
+      const totalCount = data.total || 0;
+      const rawOrders = data.orders || [];
+      const mappedOrders: AdminOrderListItem[] = rawOrders.map((o: any, idx: number) => ({
+        ...o,
+        serialNumber: Math.max(1, totalCount - ((page - 1) * pageSize + idx)),
+      }));
+      setOrders(mappedOrders);
+      setTotal(totalCount);
 
       if (dashRes && dashRes.ok) {
         const dashData = await dashRes.json();
@@ -434,6 +549,7 @@ export function OrdersList() {
     setSearchQuery("");
     setStatusFilter("");
     setAttentionFilter(false);
+    setSelectedIds(new Set());
     setPage(1);
   };
 
@@ -488,6 +604,77 @@ export function OrdersList() {
     });
     return list;
   }, [orders, sortField, sortOrder]);
+
+  // Row Selection Helpers
+  const displayedIds = useMemo(() => sortedOrders.map((o) => o.id), [sortedOrders]);
+
+  const allSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.has(id));
+  const someSelected = displayedIds.some((id) => selectedIds.has(id));
+  const isIndeterminate = someSelected && !allSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
+
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        displayedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        displayedIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handlePrintSelected = async () => {
+    if (selectedIds.size === 0) return;
+    const ordersToPrint = orders.filter((o) => selectedIds.has(o.id));
+    if (ordersToPrint.length === 0) return;
+
+    // Ensure all selected orders have their full item list loaded
+    const ordersWithItems = await Promise.all(
+      ordersToPrint.map(async (ord) => {
+        if (ord.items && ord.items.length > 0) return ord;
+        try {
+          const res = await fetch(`/api/admin/orders/${ord.id}`, { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.items) {
+              return { ...ord, items: data.items };
+            }
+          }
+        } catch {
+          // Keep existing order data if fetch fails
+        }
+        return ord;
+      })
+    );
+
+    setPrintingOrders(ordersWithItems);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
 
   const totalPages = Math.ceil(total / pageSize) || 1;
   const startItem = total > 0 ? (page - 1) * pageSize + 1 : 0;
@@ -668,25 +855,7 @@ export function OrdersList() {
           </div>
         </div>
 
-        {/* Card 3: Needs Attention */}
-        <div className="rounded-2xl border border-[#E8DFD4] bg-white p-5 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-[#FDF3EE] border border-[#F6DFD5] text-[#BF5330] flex items-center justify-center shrink-0">
-            <AlertCircle className="w-5 h-5 stroke-[1.9]" aria-hidden="true" />
-          </div>
-          <div>
-            <span
-              className="block text-2xl sm:text-3xl font-bold text-[#1A1614] leading-none"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {stats.needsAttention}
-            </span>
-            <span className="block text-xs text-[#635850] font-medium mt-1.5">
-              Needs Attention
-            </span>
-          </div>
-        </div>
-
-        {/* Card 4: Revenue (30 days) */}
+        {/* Card 3: Revenue (30 days) */}
         <div className="rounded-2xl border border-[#E8DFD4] bg-white p-5 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-[#FDF3EE] border border-[#F6DFD5] text-[#BF5330] flex items-center justify-center shrink-0">
             <IndianRupee className="w-5 h-5 stroke-[1.9]" aria-hidden="true" />
@@ -702,6 +871,45 @@ export function OrdersList() {
               Revenue (30 days)
             </span>
           </div>
+        </div>
+
+        {/* Card 4: Print Action Card */}
+        <div className="rounded-2xl border border-[#E8DFD4] bg-white p-5 shadow-xs flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-[#FDF3EE] border border-[#F6DFD5] text-[#BF5330] flex items-center justify-center shrink-0">
+              <Printer className="w-5 h-5 stroke-[1.9]" aria-hidden="true" />
+            </div>
+            <div>
+              <span
+                className="block text-2xl sm:text-3xl font-bold text-[#1A1614] leading-none"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                {selectedIds.size}
+              </span>
+              <span className="block text-xs text-[#635850] font-medium mt-1.5">
+                {selectedIds.size === 1 ? "Order Selected" : "Orders Selected"}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handlePrintSelected}
+            disabled={selectedIds.size === 0}
+            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all shrink-0 select-none ${
+              selectedIds.size === 0
+                ? "bg-[#FAF5EF] text-[#8C7E72] border border-[#E8DFD4] cursor-not-allowed opacity-60"
+                : "bg-[#BF5330] hover:bg-[#8F3E20] text-white border border-[#BF5330] cursor-pointer shadow-xs active:scale-[0.98]"
+            }`}
+            title={
+              selectedIds.size === 0
+                ? "Select orders using the checkboxes below to print delivery addresses"
+                : `Print delivery address slip(s) for ${selectedIds.size} selected order(s)`
+            }
+          >
+            <Printer className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span>Print</span>
+          </button>
         </div>
       </div>
 
@@ -779,9 +987,22 @@ export function OrdersList() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-[#E8DFD4] bg-[#FFFBF7]/80 text-[#635850] text-[12px] font-semibold select-none">
-                  {/* Serial Number */}
-                  <th className="w-12 px-4 py-3.5 text-center font-semibold text-[#635850] whitespace-nowrap">
-                    #
+                  {/* Select All Checkbox */}
+                  <th className="w-10 px-3.5 py-3.5 text-center whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      ref={selectAllRef}
+                      checked={allSelected}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded border-[#E8DFD4] text-[#BF5330] accent-[#BF5330] cursor-pointer"
+                      aria-label="Select all displayed orders"
+                      title={allSelected ? "Deselect all displayed orders" : "Select all displayed orders"}
+                    />
+                  </th>
+
+                  {/* S.No. */}
+                  <th className="w-16 px-3 py-3.5 text-center font-semibold text-[#635850] whitespace-nowrap">
+                    S.No.
                   </th>
 
                   {/* Order ID */}
@@ -864,7 +1085,8 @@ export function OrdersList() {
 
               <tbody className="divide-y divide-[#E8DFD4]/70">
                 {sortedOrders.map((o, idx) => {
-                  const serialNum = (page - 1) * pageSize + idx + 1;
+                  const serialNum = o.serialNumber ?? Math.max(1, total - ((page - 1) * pageSize + idx));
+                  const isSelected = selectedIds.has(o.id);
                   const cfg = STATUS_CONFIG[o.status] || {
                     label: o.status,
                     badgeClass: "bg-[#F5F2EC] text-[#635850] border-[#E2DAD0]",
@@ -874,10 +1096,23 @@ export function OrdersList() {
                   return (
                     <tr
                       key={o.id}
-                      className="hover:bg-[#FAF5EF]/50 transition-colors"
+                      className={`hover:bg-[#FAF5EF]/50 transition-colors ${
+                        isSelected ? "bg-[#FDF3EE]/40" : ""
+                      }`}
                     >
-                      {/* Serial Number */}
-                      <td className="w-12 px-4 py-4 text-center whitespace-nowrap text-[12px] font-medium text-[#8C7E72]">
+                      {/* Checkbox */}
+                      <td className="w-10 px-3.5 py-4 text-center whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectRow(o.id)}
+                          className="w-4 h-4 rounded border-[#E8DFD4] text-[#BF5330] accent-[#BF5330] cursor-pointer"
+                          aria-label={`Select order ${o.orderNumber}`}
+                        />
+                      </td>
+
+                      {/* S.No. */}
+                      <td className="w-16 px-3 py-4 text-center whitespace-nowrap text-[12.5px] font-medium text-[#8C7E72]">
                         {serialNum}
                       </td>
 
@@ -981,24 +1216,13 @@ export function OrdersList() {
 
                       {/* Action */}
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handlePrintOrder(o)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#E8DFD4] bg-white hover:bg-[#FAF5EF] text-[#BF5330] hover:text-[#8F3E20] text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
-                            title={`Print delivery address slip for order ${o.orderNumber}`}
-                          >
-                            <Printer className="w-3.5 h-3.5" aria-hidden="true" />
-                            <span>Print</span>
-                          </button>
-                          <Link
-                            href={`/admin/orders/${o.id}`}
-                            className="text-xs font-semibold text-[#635850] hover:text-[#1A1614] transition-colors inline-flex items-center gap-1 px-1.5 py-1.5"
-                          >
-                            <span>View</span>
-                            <span aria-hidden="true">&rarr;</span>
-                          </Link>
-                        </div>
+                        <Link
+                          href={`/admin/orders/${o.id}`}
+                          className="text-xs font-semibold text-[#BF5330] hover:text-[#8F3E20] transition-colors inline-flex items-center gap-1"
+                        >
+                          <span>View details</span>
+                          <span aria-hidden="true">&rarr;</span>
+                        </Link>
                       </td>
                     </tr>
                   );
@@ -1075,22 +1299,19 @@ export function OrdersList() {
       </div>
 
       {/* ── Screen Modal: Print Preview ── */}
-      {printingOrder && (
+      {printingOrders.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs no-print">
-          <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full border border-[#E8DFD4] overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full border border-[#E8DFD4] overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8DFD4] bg-[#FFFBF7]">
               <div>
                 <h2
                   className="text-base font-bold text-[#1A1614]"
                   style={{ fontFamily: "var(--font-heading)" }}
                 >
-                  Print Delivery Address
+                  Print Delivery {printingOrders.length === 1 ? "Address" : "Addresses"}
                 </h2>
                 <p className="text-xs text-[#635850] mt-0.5">
-                  Order Reference:{" "}
-                  <span className="font-semibold text-[#BF5330] font-order-id">
-                    {printingOrder.orderNumber}
-                  </span>
+                  {printingOrders.length} {printingOrders.length === 1 ? "order" : "orders"} selected for printing
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1104,7 +1325,7 @@ export function OrdersList() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPrintingOrder(null)}
+                  onClick={() => setPrintingOrders([])}
                   className="p-1.5 text-[#8C7E72] hover:text-[#1A1614] rounded-lg hover:bg-[#FAF5EF] transition-colors cursor-pointer"
                   aria-label="Close"
                 >
@@ -1113,12 +1334,16 @@ export function OrdersList() {
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto bg-[#F9F6F0]/40 flex justify-center">
-              <AddressSlipCard
-                order={printingOrder}
-                businessSettings={businessSettings}
-                isPreview
-              />
+            <div className="p-6 overflow-y-auto bg-[#F9F6F0]/40 flex flex-col items-center gap-6">
+              {printingOrders.map((ord) => (
+                <div key={ord.id} className="w-full flex justify-center">
+                  <AddressSlipCard
+                    order={ord}
+                    businessSettings={businessSettings}
+                    isPreview
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="px-6 py-3 border-t border-[#E8DFD4] bg-[#FFFBF7] flex items-center justify-between text-xs text-[#635850]">
@@ -1127,7 +1352,7 @@ export function OrdersList() {
               </span>
               <button
                 type="button"
-                onClick={() => setPrintingOrder(null)}
+                onClick={() => setPrintingOrders([])}
                 className="px-3 py-1.5 rounded-lg border border-[#E8DFD4] bg-white hover:bg-[#FAF5EF] text-[#635850] font-semibold text-xs cursor-pointer transition-colors"
               >
                 Close
@@ -1137,16 +1362,20 @@ export function OrdersList() {
         </div>
       )}
 
-      {/* ── Dedicated Print-Only Shipping Address Slip ── */}
-      {printingOrder && (
+      {/* ── Dedicated Print-Only Shipping Address Slip Container ── */}
+      {printingOrders.length > 0 && (
         <div
           id="admin-address-slip-wrapper"
           className="hidden print:block print:w-full print:m-0 print:p-0 text-black bg-white"
         >
-          <AddressSlipCard
-            order={printingOrder}
-            businessSettings={businessSettings}
-          />
+          {printingOrders.map((ord) => (
+            <div key={ord.id} className="admin-address-slip-item">
+              <AddressSlipCard
+                order={ord}
+                businessSettings={businessSettings}
+              />
+            </div>
+          ))}
         </div>
       )}
     </>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { AdminModal } from "@/components/admin/admin-modal";
 
 type OfferItem = {
   id: string;
@@ -248,17 +250,20 @@ export function OffersManager() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-text-primary)]">
+          <h1
+            className="text-2xl font-bold text-[#1A1614]"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             Offers & Promotions
           </h1>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          <p className="text-xs text-[#635850] mt-1">
             Configure automatic product and category level discounts applied in cart and checkout.
           </p>
         </div>
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-[var(--color-brand-primary)] text-white text-xs font-semibold hover:bg-[var(--color-brand-secondary)] transition-colors shadow-xs"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -287,52 +292,52 @@ export function OffersManager() {
       )}
 
       {/* Offers Table */}
-      <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-lg overflow-hidden shadow-2xs">
+      <div className="bg-white border border-[#E8DFD4] rounded-2xl overflow-hidden shadow-xs">
         {loading ? (
-          <div className="p-12 text-center text-xs text-[var(--color-text-muted)]">Loading offers...</div>
+          <div className="p-12 text-center text-xs text-[#8C7E72]">Loading offers...</div>
         ) : offers.length === 0 ? (
-          <div className="p-12 text-center text-xs text-[var(--color-text-muted)]">
+          <div className="p-12 text-center text-xs text-[#8C7E72]">
             No promotional offers configured. Click &quot;Create New Offer&quot; to add one.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-warm)]/40 text-[var(--color-text-secondary)] font-semibold">
-                  <th className="py-3 px-4">Offer Name</th>
-                  <th className="py-3 px-4">Scope & Target</th>
-                  <th className="py-3 px-4">Discount</th>
-                  <th className="py-3 px-4">Validity Window</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                <tr className="border-b border-[#E8DFD4] bg-[#FFFBF7] text-[#635850] font-semibold">
+                  <th className="py-3.5 px-4">Offer Name</th>
+                  <th className="py-3.5 px-4">Scope & Target</th>
+                  <th className="py-3.5 px-4">Discount</th>
+                  <th className="py-3.5 px-4">Validity Window</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--color-border-subtle)] text-[var(--color-text-primary)]">
+              <tbody className="divide-y divide-[#E8DFD4] text-[#1A1614]">
                 {offers.map((o) => (
-                  <tr key={o.id} className="hover:bg-[var(--color-surface-warm)]/20 transition-colors">
-                    <td className="py-3 px-4 font-semibold">{o.name}</td>
-                    <td className="py-3 px-4">
-                      <span className="capitalize font-mono text-[11px] text-[var(--color-brand-secondary)] font-medium">
+                  <tr key={o.id} className="hover:bg-[#FAF5EF]/60 transition-colors">
+                    <td className="py-3.5 px-4 font-semibold text-[#1A1614]">{o.name}</td>
+                    <td className="py-3.5 px-4">
+                      <span className="capitalize font-mono text-[11px] text-[#BF5330] font-semibold">
                         [{o.scope}]
                       </span>{" "}
-                      <span>{o.scope === "product" ? o.productName || "Product" : o.categoryName || "Category"}</span>
+                      <span className="text-[#635850]">{o.scope === "product" ? o.productName || "Product" : o.categoryName || "Category"}</span>
                     </td>
-                    <td className="py-3 px-4 font-mono font-medium">
+                    <td className="py-3.5 px-4 font-mono font-semibold text-[#1A1614]">
                       {o.discountType === "percentage" ? `${o.value}% OFF` : `-${formatPrice(o.value)}`}
                     </td>
-                    <td className="py-3 px-4 text-[11px] text-[var(--color-text-secondary)]">
+                    <td className="py-3.5 px-4 text-[11px] text-[#635850]">
                       <div>From: {new Date(o.startsAt).toLocaleDateString()}</div>
                       <div>To: {new Date(o.endsAt).toLocaleDateString()}</div>
                     </td>
-                    <td className="py-3 px-4">{getStatusBadge(o)}</td>
-                    <td className="py-3 px-4 text-right space-x-2">
+                    <td className="py-3.5 px-4">{getStatusBadge(o)}</td>
+                    <td className="py-3.5 px-4 text-right space-x-2">
                       <button
                         type="button"
                         onClick={() => handleToggleActive(o)}
-                        className={`text-[11px] font-medium px-2 py-1 rounded border transition-colors ${
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
                           o.isActive
-                            ? "border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
-                            : "border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                            ? "border-amber-200 text-amber-800 bg-amber-50 hover:bg-amber-100"
+                            : "border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
                         }`}
                       >
                         {o.isActive ? "Deactivate" : "Activate"}
@@ -340,14 +345,14 @@ export function OffersManager() {
                       <button
                         type="button"
                         onClick={() => openEditModal(o)}
-                        className="text-[11px] font-medium px-2 py-1 rounded border border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-[#E8DFD4] bg-white text-[#635850] hover:bg-[#FAF5EF] hover:text-[#1A1614] transition-colors cursor-pointer"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(o)}
-                        className="text-[11px] font-medium px-2 py-1 rounded border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
                       >
                         Delete
                       </button>
@@ -361,207 +366,226 @@ export function OffersManager() {
       </div>
 
       {/* Modal: Create or Edit Offer */}
-      {(isCreating || editingOffer) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-lg max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
-              <h2 className="font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-text-primary)]">
-                {editingOffer ? "Edit Offer" : "Create New Offer"}
-              </h2>
+      <AdminModal
+        isOpen={Boolean(isCreating || editingOffer)}
+        onClose={() => {
+          setEditingOffer(null);
+          setIsCreating(false);
+          setFormError(null);
+        }}
+        title={editingOffer ? "Edit Offer" : "Create New Offer"}
+        description={
+          editingOffer
+            ? "Update offer scope, discount values, and validity period."
+            : "Set up a new product or category-level promotional offer."
+        }
+        maxWidthClass="max-w-[540px]"
+      >
+        <div className="space-y-4">
+          {formError && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="offer-name" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                Offer Name <span className="text-[#BF5330]">*</span>
+              </label>
+              <input
+                id="offer-name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Summer Health Mix 10% Off"
+                className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="offer-scope" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  Scope <span className="text-[#BF5330]">*</span>
+                </label>
+                <select
+                  id="offer-scope"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as any)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs cursor-pointer"
+                >
+                  <option value="product">Specific Product</option>
+                  <option value="category">Whole Category</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="offer-target" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  Target {scope === "product" ? "Product" : "Category"} <span className="text-[#BF5330]">*</span>
+                </label>
+                {scope === "product" ? (
+                  <select
+                    id="offer-target"
+                    value={productId}
+                    onChange={(e) => setProductId(e.target.value)}
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs cursor-pointer"
+                  >
+                    {productsList.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    id="offer-target"
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs cursor-pointer"
+                  >
+                    {categoriesList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="offer-discount-type" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  Discount Type <span className="text-[#BF5330]">*</span>
+                </label>
+                <select
+                  id="offer-discount-type"
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value as any)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs cursor-pointer"
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="flat">Flat Amount (₹)</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="offer-discount-value" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  {discountType === "percentage" ? "Percentage Value (%)" : "Flat Discount (₹)"}{" "}
+                  <span className="text-[#BF5330]">*</span>
+                </label>
+                <input
+                  id="offer-discount-value"
+                  type="number"
+                  step={discountType === "percentage" ? "1" : "0.01"}
+                  required
+                  min="1"
+                  value={valueDisplay}
+                  onChange={(e) => setValueDisplay(e.target.value)}
+                  placeholder={discountType === "percentage" ? "e.g. 15" : "e.g. 50"}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="offer-start-date" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  Start Date & Time <span className="text-[#BF5330]">*</span>
+                </label>
+                <input
+                  id="offer-start-date"
+                  type="datetime-local"
+                  required
+                  value={startsAt}
+                  onChange={(e) => setStartsAt(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
+              </div>
+              <div>
+                <label htmlFor="offer-end-date" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  End Date & Time <span className="text-[#BF5330]">*</span>
+                </label>
+                <input
+                  id="offer-end-date"
+                  type="datetime-local"
+                  required
+                  value={endsAt}
+                  onChange={(e) => setEndsAt(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#FFFBF7] border border-[#E8DFD4]">
+              <input
+                type="checkbox"
+                id="offerIsActive"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="h-4 w-4 rounded border-[#E8DFD4] text-[#BF5330] focus:ring-[#BF5330] cursor-pointer"
+              />
+              <label htmlFor="offerIsActive" className="text-xs font-semibold text-[#1A1614] cursor-pointer select-none">
+                Offer is Active and Available to Customers
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#E8DFD4]">
               <button
                 type="button"
                 onClick={() => {
                   setEditingOffer(null);
                   setIsCreating(false);
                 }}
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-lg"
-              >
-                &times;
-              </button>
-            </div>
-
-            {formError && (
-              <div className="p-3 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-medium text-[var(--color-text-secondary)] mb-1">
-                  Offer Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Summer Health Mix 10% Off"
-                  className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-[var(--color-text-secondary)] mb-1">Scope</label>
-                  <select
-                    value={scope}
-                    onChange={(e) => setScope(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                  >
-                    <option value="product">Specific Product</option>
-                    <option value="category">Whole Category</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-[var(--color-text-secondary)] mb-1">Target</label>
-                  {scope === "product" ? (
-                    <select
-                      value={productId}
-                      onChange={(e) => setProductId(e.target.value)}
-                      className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                    >
-                      {productsList.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select
-                      value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                      className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                    >
-                      {categoriesList.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-[var(--color-text-secondary)] mb-1">Discount Type</label>
-                  <select
-                    value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                  >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="flat">Flat Amount (₹)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-[var(--color-text-secondary)] mb-1">
-                    {discountType === "percentage" ? "Percentage Value (%)" : "Flat Discount (₹)"}
-                  </label>
-                  <input
-                    type="number"
-                    step={discountType === "percentage" ? "1" : "0.01"}
-                    required
-                    min="1"
-                    value={valueDisplay}
-                    onChange={(e) => setValueDisplay(e.target.value)}
-                    placeholder={discountType === "percentage" ? "e.g. 15" : "e.g. 50"}
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-[var(--color-text-secondary)] mb-1">Start Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={startsAt}
-                    onChange={(e) => setStartsAt(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium text-[var(--color-text-secondary)] mb-1">End Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={endsAt}
-                    onChange={(e) => setEndsAt(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="offerIsActive"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="rounded border-[var(--color-border-subtle)] text-[var(--color-brand-primary)]"
-                />
-                <label htmlFor="offerIsActive" className="font-medium text-[var(--color-text-primary)]">
-                  Offer is Active and Available to Customers
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingOffer(null);
-                    setIsCreating(false);
-                  }}
-                  className="px-4 py-2 rounded border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={formSubmitting}
-                  className="px-4 py-2 rounded bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-secondary)] font-medium disabled:opacity-50"
-                >
-                  {formSubmitting ? "Saving..." : editingOffer ? "Update Offer" : "Create Offer"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Delete Confirmation */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-lg max-w-sm w-full p-5 shadow-xl space-y-4 text-xs">
-            <h3 className="font-bold text-sm text-rose-700">Delete Offer?</h3>
-            <p className="text-[var(--color-text-secondary)]">
-              Are you sure you want to delete offer &quot;{deleteTarget.name}&quot;? Customers will no longer receive this discount.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="px-3 py-1.5 rounded border border-stone-200 bg-white text-stone-700 font-medium"
+                className="px-4 py-2.5 rounded-xl border border-[#E8DFD4] bg-[#FAF5EF] text-[#635850] hover:bg-white hover:text-[#1A1614] font-semibold text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                type="button"
-                disabled={deleting}
-                onClick={handleDeleteConfirm}
-                className="px-3 py-1.5 rounded bg-rose-600 text-white font-medium hover:bg-rose-700 disabled:opacity-50"
+                type="submit"
+                disabled={formSubmitting}
+                className="px-5 py-2.5 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white font-semibold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {formSubmitting ? "Saving..." : editingOffer ? "Update Offer" : "Create Offer"}
               </button>
             </div>
+          </form>
+        </div>
+      </AdminModal>
+
+      {/* Modal: Delete Confirmation */}
+      <AdminModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Offer?"
+        description="This action will remove promotional discounts for customers."
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[#635850]">
+            Are you sure you want to delete offer <span className="font-semibold text-[#1A1614]">&quot;{deleteTarget?.name}&quot;</span>? Customers will no longer receive this discount.
+          </p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#E8DFD4]">
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              className="px-4 py-2 rounded-xl border border-[#E8DFD4] bg-[#FAF5EF] text-[#635850] hover:bg-white hover:text-[#1A1614] font-semibold text-xs transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={handleDeleteConfirm}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Delete Offer"}
+            </button>
           </div>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }
