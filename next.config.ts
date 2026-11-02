@@ -19,6 +19,11 @@ const config: NextConfig = {
         hostname: "**.cloudflarestorage.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "**.spnhealthmix.com",
+        pathname: "/**",
+      },
       // Vercel Blob (used by Inspo MCP for reference thumbnails — not product images)
       {
         protocol: "https",

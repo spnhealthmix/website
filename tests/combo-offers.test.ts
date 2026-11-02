@@ -306,5 +306,33 @@ describe("Admin Order Detail - Product Image Resolution", () => {
   });
 });
 
+describe("Cloudflare R2 Storage Adapter", () => {
+  it("initializes S3-compatible R2 storage when config is provided", async () => {
+    const { createR2Storage } = await import("../src/lib/storage/storage");
+    const storage = createR2Storage({
+      accountId: "test-account",
+      accessKeyId: "test-key",
+      secretAccessKey: "test-secret",
+      bucketName: "test-bucket",
+    });
+    expect(storage).toBeDefined();
+    expect(typeof storage.put).toBe("function");
+    expect(typeof storage.delete).toBe("function");
+  });
+
+  it("getStorage returns undefined when required credentials are empty", async () => {
+    const { getStorage } = await import("../src/lib/storage/storage");
+    const prevAccount = process.env.R2_ACCOUNT_ID;
+    const prevKey = process.env.R2_ACCESS_KEY_ID;
+    delete process.env.R2_ACCOUNT_ID;
+    delete process.env.R2_ACCESS_KEY_ID;
+
+    expect(getStorage()).toBeUndefined();
+
+    if (prevAccount) process.env.R2_ACCOUNT_ID = prevAccount;
+    if (prevKey) process.env.R2_ACCESS_KEY_ID = prevKey;
+  });
+});
+
 
 

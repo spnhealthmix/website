@@ -2,7 +2,7 @@ import { dispatchAdminRequest } from "@/lib/api/admin-router";
 import { json } from "@/lib/api/http";
 import type { ApiDeps } from "@/lib/api/customer-api";
 import { getTxDb } from "@/lib/db";
-import { r2Storage } from "@/lib/storage/storage";
+import { getStorage } from "@/lib/storage/storage";
 import { extractSessionTokenFromRequest, validateSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { normalizeAllowedOrigins } from "@/lib/security/origin";
@@ -13,9 +13,8 @@ function getDeps(req: Request): ApiDeps {
   const databaseUrl = process.env.DATABASE_URL!;
   const allowedOrigins = normalizeAllowedOrigins(process.env.APP_ORIGINS);
 
-  // Cloudflare R2 bucket binding or S3/compatible client fallback
-  const r2Bucket = (process.env as any).SPN_IMAGES;
-  const storage = r2Bucket ? r2Storage(r2Bucket) : undefined;
+  // Cloudflare R2 bucket binding or S3-compatible client
+  const storage = getStorage();
 
   return {
     withDb: async (fn) => {
