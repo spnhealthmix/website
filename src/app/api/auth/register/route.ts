@@ -9,10 +9,13 @@ import {
   mergeGuestCartIntoUser,
   serializeClearGuestCartCookie,
 } from "@/lib/cart/guest-cart";
+import { createRequestLogger, REQUEST_ID_HEADER, logError } from "@/lib/logger";
+import { captureAppException } from "@/lib/sentry";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const { logger, requestId } = createRequestLogger(req, "/api/auth/register");
   try {
     const body = await req.json();
     const { name, email, password, confirmPassword } = body;
@@ -121,9 +124,15 @@ export async function POST(req: Request) {
 
       const responseHeaders = new Headers();
       responseHeaders.append("Set-Cookie", cookieHeader);
+      responseHeaders.set(REQUEST_ID_HEADER, requestId);
       if (guestItems.length > 0) {
         responseHeaders.append("Set-Cookie", serializeClearGuestCartCookie());
       }
+
+      logger.info(
+        { userId: newProfile.id, userRole: newProfile.role },
+        "Customer registered successfully"
+      );
 
       return Response.json(
         {
@@ -139,10 +148,15 @@ export async function POST(req: Request) {
       await close();
     }
   } catch (err: any) {
-    console.error("Registration error:", err);
+    captureAppException(err, {
+      requestId,
+      route: "/api/auth/register",
+      method: "POST",
+    });
+    logError(logger, err, "Registration error");
     return Response.json(
       { error: "An unexpected error occurred during registration. Please try again." },
-      { status: 500 }
+      { status: 500, headers: { [REQUEST_ID_HEADER]: requestId } }
     );
   }
 }

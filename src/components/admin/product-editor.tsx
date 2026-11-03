@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
+import { AdminModal } from "@/components/admin/admin-modal";
 
 type Variant = {
   id: string;
@@ -1017,227 +1018,225 @@ export function ProductEditor({ productId }: { productId: string }) {
       )}
 
       {/* Add / Edit Variant Modal */}
-      {variantModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-lg max-w-md w-full p-6 shadow-lg">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border-subtle)] mb-4">
-              <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-text-primary)]">
-                {editingVariant ? `Edit Variant: ${editingVariant.label}` : "Add Product Variant"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setVariantModalOpen(false)}
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-lg leading-none"
-              >
-                &times;
-              </button>
+      <AdminModal
+        isOpen={variantModalOpen}
+        onClose={() => setVariantModalOpen(false)}
+        title={editingVariant ? `Edit Variant: ${editingVariant.label}` : "Add Product Variant"}
+        description={
+          editingVariant
+            ? "Update pricing, SKU code, or inventory stock for this variant."
+            : "Create a new variant pack size or weight option for this product."
+        }
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          {variantError && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <span>{variantError}</span>
             </div>
+          )}
 
-            {variantError && (
-              <div className="mb-4 p-3 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-                {variantError}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveVariant} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="v-sku" className="block font-medium text-[var(--color-text-primary)] mb-1">
-                    SKU Code *
-                  </label>
-                  <input
-                    id="v-sku"
-                    type="text"
-                    required
-                    value={varSku}
-                    onChange={(e) => setVarSku(e.target.value.toUpperCase())}
-                    placeholder="e.g. SPN-HM-500"
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-warm)]/40 focus:outline-none focus:border-[var(--color-brand-primary)] font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="v-label" className="block font-medium text-[var(--color-text-primary)] mb-1">
-                    Label / Weight *
-                  </label>
-                  <input
-                    id="v-label"
-                    type="text"
-                    required
-                    value={varLabel}
-                    onChange={(e) => setVarLabel(e.target.value)}
-                    placeholder="e.g. 500 g or 1 kg"
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-warm)]/40 focus:outline-none focus:border-[var(--color-brand-primary)] text-xs"
-                  />
-                </div>
-              </div>
-
+          <form onSubmit={handleSaveVariant} className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="v-grams" className="block font-medium text-[var(--color-text-primary)] mb-1">
-                  Weight in Grams (Optional)
+                <label htmlFor="v-sku" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  SKU Code <span className="text-[#BF5330]">*</span>
                 </label>
                 <input
-                  id="v-grams"
-                  type="number"
-                  value={varWeightGrams}
-                  onChange={(e) => setVarWeightGrams(e.target.value)}
-                  placeholder="e.g. 500"
-                  className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-warm)]/40 focus:outline-none focus:border-[var(--color-brand-primary)] text-xs"
+                  id="v-sku"
+                  type="text"
+                  required
+                  value={varSku}
+                  onChange={(e) => setVarSku(e.target.value.toUpperCase())}
+                  placeholder="e.g. SPN-HM-500"
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono uppercase font-semibold text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-3 bg-[var(--color-surface-warm)]/40 rounded border border-[var(--color-border-subtle)]">
-                <div>
-                  <label htmlFor="v-mrp" className="block font-medium text-[var(--color-text-primary)] mb-1">
-                    MRP (₹) *
-                  </label>
-                  <input
-                    id="v-mrp"
-                    type="number"
-                    step="0.01"
-                    required
-                    value={varMrpRupees}
-                    onChange={(e) => setVarMrpRupees(e.target.value)}
-                    placeholder="e.g. 350.00"
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] focus:outline-none focus:border-[var(--color-brand-primary)] font-bold text-sm"
-                  />
-                </div>
+              <div>
+                <label htmlFor="v-label" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  Label / Weight <span className="text-[#BF5330]">*</span>
+                </label>
+                <input
+                  id="v-label"
+                  type="text"
+                  required
+                  value={varLabel}
+                  onChange={(e) => setVarLabel(e.target.value)}
+                  placeholder="e.g. 500 g or 1 kg"
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
+              </div>
+            </div>
 
-                <div>
-                  <label htmlFor="v-price" className="block font-medium text-[var(--color-text-primary)] mb-1">
-                    Selling Price (₹) *
-                  </label>
-                  <input
-                    id="v-price"
-                    type="number"
-                    step="0.01"
-                    required
-                    value={varPriceRupees}
-                    onChange={(e) => setVarPriceRupees(e.target.value)}
-                    placeholder="e.g. 299.00"
-                    className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] focus:outline-none focus:border-[var(--color-brand-primary)] font-bold text-sm text-[var(--color-brand-primary)]"
-                  />
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="v-grams" className="text-xs font-semibold text-[#1A1614]">
+                  Weight in Grams
+                </label>
+                <span className="text-[11px] text-[#8C7E72]">Optional</span>
+              </div>
+              <input
+                id="v-grams"
+                type="number"
+                value={varWeightGrams}
+                onChange={(e) => setVarWeightGrams(e.target.value)}
+                placeholder="e.g. 500"
+                className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 p-3.5 bg-[#FFFBF7] rounded-xl border border-[#E8DFD4]">
+              <div>
+                <label htmlFor="v-mrp" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  MRP (₹) <span className="text-[#BF5330]">*</span>
+                </label>
+                <input
+                  id="v-mrp"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={varMrpRupees}
+                  onChange={(e) => setVarMrpRupees(e.target.value)}
+                  placeholder="e.g. 350.00"
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-bold text-sm placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
               </div>
 
-              {/* Stock Management Section */}
-              <div className="p-3 bg-[var(--color-surface-warm)]/40 rounded border border-[var(--color-border-subtle)] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[var(--color-text-primary)]">
-                    Inventory Stock
-                  </span>
-                  {editingVariant && (
-                    <button
-                      type="button"
-                      onClick={() => setUseDeltaAdjustment(!useDeltaAdjustment)}
-                      className="text-[11px] text-[var(--color-brand-primary)] underline"
-                    >
-                      {useDeltaAdjustment ? "Set exact count" : "Add/Remove delta"}
-                    </button>
-                  )}
-                </div>
+              <div>
+                <label htmlFor="v-price" className="block text-xs font-semibold text-[#1A1614] mb-1.5">
+                  Selling Price (₹) <span className="text-[#BF5330]">*</span>
+                </label>
+                <input
+                  id="v-price"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={varPriceRupees}
+                  onChange={(e) => setVarPriceRupees(e.target.value)}
+                  placeholder="e.g. 299.00"
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#BF5330] font-bold text-sm placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
+              </div>
+            </div>
 
-                {editingVariant && useDeltaAdjustment ? (
-                  <div>
-                    <label htmlFor="v-stock-delta" className="block text-[11px] text-[var(--color-text-muted)] mb-1">
-                      Current: {editingVariant.stock} units. Enter stock adjustment (+/-):
-                    </label>
-                    <input
-                      id="v-stock-delta"
-                      type="number"
-                      value={varStockDelta}
-                      onChange={(e) => setVarStockDelta(e.target.value)}
-                      placeholder="e.g. +10 to add, -5 to reduce"
-                      className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] focus:outline-none focus:border-[var(--color-brand-primary)] font-mono text-xs"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label htmlFor="v-stock" className="block text-[11px] text-[var(--color-text-muted)] mb-1">
-                      Available Stock Count
-                    </label>
-                    <input
-                      id="v-stock"
-                      type="number"
-                      min="0"
-                      value={varStock}
-                      onChange={(e) => setVarStock(e.target.value)}
-                      className="w-full px-3 py-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] focus:outline-none focus:border-[var(--color-brand-primary)] font-mono text-xs"
-                    />
-                  </div>
+            {/* Stock Management Section */}
+            <div className="p-3.5 bg-[#FFFBF7] rounded-xl border border-[#E8DFD4] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#1A1614]">
+                  Inventory Stock
+                </span>
+                {editingVariant && (
+                  <button
+                    type="button"
+                    onClick={() => setUseDeltaAdjustment(!useDeltaAdjustment)}
+                    className="text-[11px] font-semibold text-[#BF5330] hover:text-[#8F3E20] hover:underline cursor-pointer"
+                  >
+                    {useDeltaAdjustment ? "Set exact count" : "Add/Remove delta"}
+                  </button>
                 )}
               </div>
 
-              <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+              {editingVariant && useDeltaAdjustment ? (
+                <div>
+                  <label htmlFor="v-stock-delta" className="block text-[11px] text-[#635850] mb-1.5">
+                    Current: <strong className="text-[#1A1614]">{editingVariant.stock}</strong> units. Enter stock adjustment (+/-):
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={varIsActive}
-                    onChange={(e) => setVarIsActive(e.target.checked)}
-                    className="rounded border-[var(--color-border-subtle)] text-[var(--color-brand-primary)] focus:ring-[var(--color-brand-primary)]"
+                    id="v-stock-delta"
+                    type="number"
+                    value={varStockDelta}
+                    onChange={(e) => setVarStockDelta(e.target.value)}
+                    placeholder="e.g. +10 to add, -5 to reduce"
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
                   />
-                  <span className="font-medium text-[var(--color-text-primary)]">
-                    Variant is Active &amp; Purchasable
-                  </span>
-                </label>
-              </div>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="v-stock" className="block text-[11px] text-[#635850] mb-1.5">
+                    Available Stock Count
+                  </label>
+                  <input
+                    id="v-stock"
+                    type="number"
+                    min="0"
+                    value={varStock}
+                    onChange={(e) => setVarStock(e.target.value)}
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                  />
+                </div>
+              )}
+            </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setVariantModalOpen(false)}
-                  disabled={savingVariant}
-                  className="px-3 py-2 rounded border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-warm)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingVariant}
-                  className="px-4 py-2 rounded bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-secondary)] font-semibold disabled:opacity-50"
-                >
-                  {savingVariant ? "Saving..." : editingVariant ? "Update Variant" : "Add Variant"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#FFFBF7] border border-[#E8DFD4]">
+              <input
+                type="checkbox"
+                id="varIsActive"
+                checked={varIsActive}
+                onChange={(e) => setVarIsActive(e.target.checked)}
+                className="h-4 w-4 rounded border-[#E8DFD4] text-[#BF5330] focus:ring-[#BF5330] cursor-pointer"
+              />
+              <label htmlFor="varIsActive" className="text-xs font-semibold text-[#1A1614] cursor-pointer select-none">
+                Variant is Active &amp; Purchasable
+              </label>
+            </div>
 
-      {/* Delete Variant Modal */}
-      {deleteVariantTarget && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-lg max-w-sm w-full p-6 shadow-lg">
-            <h3 className="font-[family-name:var(--font-heading)] text-base font-bold text-rose-800 mb-2">
-              Delete Variant
-            </h3>
-            <p className="text-xs text-[var(--color-text-secondary)] mb-4">
-              Are you sure you want to delete <span className="font-semibold text-[var(--color-text-primary)]">"{deleteVariantTarget.label} ({deleteVariantTarget.sku})"</span>?
-              <span className="block mt-2 font-medium text-stone-600">
-                Note: If this variant has ever been ordered before, the database will refuse deletion to protect order accounting records. Deactivate it instead.
-              </span>
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-3 pt-5 border-t border-[#E8DFD4]">
               <button
                 type="button"
-                onClick={() => setDeleteVariantTarget(null)}
-                disabled={deletingVariant}
-                className="px-3 py-1.5 rounded border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-warm)]"
+                onClick={() => setVariantModalOpen(false)}
+                disabled={savingVariant}
+                className="px-4 py-2.5 rounded-xl border border-[#E8DFD4] bg-[#FAF5EF] text-[#635850] hover:bg-white hover:text-[#1A1614] font-semibold text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleDeleteVariant}
-                disabled={deletingVariant}
-                className="px-3 py-1.5 rounded bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 disabled:opacity-50"
+                type="submit"
+                disabled={savingVariant}
+                className="px-5 py-2.5 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white font-semibold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {deletingVariant ? "Deleting..." : "Delete Variant"}
+                {savingVariant ? "Saving..." : editingVariant ? "Update Variant" : "Add Variant"}
               </button>
             </div>
+          </form>
+        </div>
+      </AdminModal>
+
+      {/* Delete Variant Modal */}
+      <AdminModal
+        isOpen={Boolean(deleteVariantTarget)}
+        onClose={() => setDeleteVariantTarget(null)}
+        title="Delete Variant?"
+        description="Accounting records preservation notice."
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[#635850]">
+            Are you sure you want to delete <span className="font-semibold text-[#1A1614]">&ldquo;{deleteVariantTarget?.label} ({deleteVariantTarget?.sku})&rdquo;</span>?
+          </p>
+          <div className="p-3.5 rounded-xl bg-[#FAF5EF] border border-[#E8DFD4] text-[#8C7E72] text-xs leading-relaxed">
+            Note: If this variant has ever been ordered before, the database will refuse deletion to protect order accounting records. Deactivate it instead.
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#E8DFD4]">
+            <button
+              type="button"
+              onClick={() => setDeleteVariantTarget(null)}
+              disabled={deletingVariant}
+              className="px-4 py-2.5 rounded-xl border border-[#E8DFD4] bg-[#FAF5EF] text-[#635850] hover:bg-white hover:text-[#1A1614] font-semibold text-xs transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteVariant}
+              disabled={deletingVariant}
+              className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {deletingVariant ? "Deleting..." : "Delete Variant"}
+            </button>
           </div>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

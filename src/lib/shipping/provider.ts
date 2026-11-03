@@ -62,12 +62,19 @@ export function registerShippingProvider(provider: ShippingProvider): void {
 
 export function getShippingProvider(providerId?: string): ShippingProvider {
   ensureDefaultProviders();
+  // SPN Health Mix uses direct courier / manual shipping by default and is independent of Shiprocket.
+  // In test environments, "mock" is used unless explicitly specified.
+  const envProvider = process.env.SHIPPING_PROVIDER?.trim().toLowerCase();
   const defaultProvider =
-    process.env.SHIPPING_PROVIDER || (process.env.NODE_ENV === "test" ? "mock" : "shiprocket");
+    envProvider && envProvider !== "shiprocket"
+      ? envProvider
+      : process.env.NODE_ENV === "test"
+        ? "mock"
+        : "manual";
   const targetId = (providerId || defaultProvider).toLowerCase();
   const provider = registry.get(targetId);
   if (!provider) {
-    const fallback = registry.get("mock") || registry.get("manual");
+    const fallback = registry.get("manual") || registry.get("mock");
     if (fallback) return fallback;
     throw new Error(`Shipping provider '${targetId}' not registered and no fallback available.`);
   }

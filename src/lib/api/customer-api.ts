@@ -44,7 +44,7 @@ import {
 import { ApiError, errorBody, isUniqueViolation, json, readJson, toResponse, validate } from "./http";
 import { checkEndpointRateLimit } from "../security/rate-limit";
 import { assertAdminOriginAllowed, assertCustomerOriginAllowed } from "../security/origin";
-
+import { REQUEST_ID_HEADER, extractOrGenerateRequestId, type StructuredLogger } from "../logger";
 
 export type ApiDeps = {
   /** Opens a db connection for this request and always closes it afterwards. */
@@ -58,6 +58,8 @@ export type ApiDeps = {
   allowedOrigins?: string[];
   now?: () => Date;
   log?: (msg: string, extra?: unknown) => void;
+  logger?: StructuredLogger;
+  requestId?: string;
   storage?: ObjectStorage;
   imageBaseUrl?: string;
 };
@@ -74,7 +76,8 @@ export const MAX_OPEN_PENDING_ORDERS = 3;
  *   3. One place that converts errors into safe responses.
  */
 export function secured(deps: ApiDeps, req: Request, opts: { mutating: boolean; requireOrigin?: boolean }, fn: (c: Ctx) => Promise<Response>) {
-  const log = deps.log ?? ((m, e) => console.error(m, e));
+  const log = deps.logger ?? deps.log ?? ((m, e) => console.error(m, e));
+  const requestId = deps.requestId ?? extractOrGenerateRequestId(req);
   return (async () => {
     try {
       if (opts.requireOrigin) {
@@ -84,11 +87,15 @@ export function secured(deps: ApiDeps, req: Request, opts: { mutating: boolean; 
       }
       return await deps.withDb(async (db) => {
         const user = await deps.authenticate(req, db);
-        if (!user) return json(401, errorBody("UNAUTHENTICATED", "Please sign in."));
-        return fn({ db, user, req });
+        if (!user) return json(401, errorBody("UNAUTHENTICATED", "Please sign in."), undefined, requestId);
+        const res = await fn({ db, user, req });
+        if (!res.headers.has(REQUEST_ID_HEADER)) {
+          res.headers.set(REQUEST_ID_HEADER, requestId);
+        }
+        return res;
       });
     } catch (err) {
-      return toResponse(err, log);
+      return toResponse(err, log, requestId);
     }
   })();
 }
@@ -411,7 +418,8 @@ export const postCheckoutVerify = (req: Request, deps: ApiDeps) =>
  * Validates and previews coupon discount against the active customer's server-side cart.
  */
 export const postCartCoupon = (req: Request, deps: ApiDeps) => {
-  const log = deps.log ?? ((m, e) => console.error(m, e));
+  const log = deps.logger ?? deps.log ?? ((m, e) => console.error(m, e));
+  const requestId = deps.requestId ?? extractOrGenerateRequestId(req);
   return (async () => {
     try {
       return await deps.withDb(async (db) => {
@@ -472,10 +480,10 @@ export const postCartCoupon = (req: Request, deps: ApiDeps) => {
           finalPayablePaise: result.finalPayablePaise,
           appliedCoupon: result.appliedCoupon,
           appliedOffers: result.appliedOffers,
-        });
+        }, undefined, requestId);
       });
     } catch (err) {
-      return toResponse(err, log);
+      return toResponse(err, log, requestId);
     }
   })();
 };

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { AdminModal } from "@/components/admin/admin-modal";
 import {
   RefreshCw,
   Search,
@@ -1299,68 +1300,70 @@ export function OrdersList() {
       </div>
 
       {/* ── Screen Modal: Print Preview ── */}
-      {printingOrders.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs no-print">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full border border-[#E8DFD4] overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8DFD4] bg-[#FFFBF7]">
-              <div>
-                <h2
-                  className="text-base font-bold text-[#1A1614]"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  Print Delivery {printingOrders.length === 1 ? "Address" : "Addresses"}
-                </h2>
-                <p className="text-xs text-[#635850] mt-0.5">
-                  {printingOrders.length} {printingOrders.length === 1 ? "order" : "orders"} selected for printing
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print / Save PDF</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPrintingOrders([])}
-                  className="p-1.5 text-[#8C7E72] hover:text-[#1A1614] rounded-lg hover:bg-[#FAF5EF] transition-colors cursor-pointer"
-                  aria-label="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+      <AdminModal
+        isOpen={printingOrders.length > 0}
+        onClose={() => setPrintingOrders([])}
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="flex flex-col max-h-[85vh] -m-6 sm:-m-7">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8DFD4] bg-[#FFFBF7] rounded-t-2xl">
+            <div>
+              <h2
+                className="text-base font-bold text-[#1A1614]"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                Print Delivery {printingOrders.length === 1 ? "Address" : "Addresses"}
+              </h2>
+              <p className="text-xs text-[#635850] mt-0.5">
+                {printingOrders.length} {printingOrders.length === 1 ? "order" : "orders"} selected for printing
+              </p>
             </div>
-
-            <div className="p-6 overflow-y-auto bg-[#F9F6F0]/40 flex flex-col items-center gap-6">
-              {printingOrders.map((ord) => (
-                <div key={ord.id} className="w-full flex justify-center">
-                  <AddressSlipCard
-                    order={ord}
-                    businessSettings={businessSettings}
-                    isPreview
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="px-6 py-3 border-t border-[#E8DFD4] bg-[#FFFBF7] flex items-center justify-between text-xs text-[#635850]">
-              <span>
-                Tip: In the print dialog, select <strong>Save as PDF</strong> or choose your label printer.
-              </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print / Save PDF</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setPrintingOrders([])}
-                className="px-3 py-1.5 rounded-lg border border-[#E8DFD4] bg-white hover:bg-[#FAF5EF] text-[#635850] font-semibold text-xs cursor-pointer transition-colors"
+                className="p-1.5 text-[#8C7E72] hover:text-[#1A1614] rounded-lg hover:bg-[#FAF5EF] transition-colors cursor-pointer"
+                aria-label="Close"
               >
-                Close
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
+
+          <div className="p-6 overflow-y-auto bg-[#F9F6F0]/40 flex flex-col items-center gap-6">
+            {printingOrders.map((ord) => (
+              <div key={ord.id} className="w-full flex justify-center">
+                <AddressSlipCard
+                  order={ord}
+                  businessSettings={businessSettings}
+                  isPreview
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="px-6 py-3 border-t border-[#E8DFD4] bg-[#FFFBF7] rounded-b-2xl flex items-center justify-between text-xs text-[#635850]">
+            <span>
+              Tip: In the print dialog, select <strong>Save as PDF</strong> or choose your label printer.
+            </span>
+            <button
+              type="button"
+              onClick={() => setPrintingOrders([])}
+              className="px-3 py-1.5 rounded-lg border border-[#E8DFD4] bg-white hover:bg-[#FAF5EF] text-[#635850] font-semibold text-xs cursor-pointer transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
-      )}
+      </AdminModal>
 
       {/* ── Dedicated Print-Only Shipping Address Slip Container ── */}
       {printingOrders.length > 0 && (

@@ -8,6 +8,7 @@ import {
   triggerPaymentFailedEmail,
   triggerPaymentSuccessEmail,
 } from "../email/service";
+import { captureAppException } from "../sentry";
 
 export type WebhookDeps = {
   webhookSecret: string;
@@ -165,6 +166,10 @@ export async function handleRazorpayWebhook(req: Request, deps: WebhookDeps): Pr
     return json(200, { status: "ignored", event: eventType });
 
   } catch (err) {
+    captureAppException(err, {
+      route: "/api/webhooks/razorpay",
+      extra: { eventId, eventType },
+    });
     log("razorpay webhook: processing failed, asking Razorpay to retry", {
       eventId,
       eventType,

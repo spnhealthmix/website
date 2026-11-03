@@ -7,12 +7,15 @@ import type { AnyDb } from "../orders/common";
 import { publicReviewQuerySchema } from "../reviews/validation";
 import { listProductReviews } from "../reviews/service";
 import { ApiError, errorBody, json, toResponse, validate } from "./http";
+import { REQUEST_ID_HEADER, extractOrGenerateRequestId, type StructuredLogger } from "../logger";
 
 /** Public endpoints need a database and an image base URL: no session, no payments, no storage. */
 export type PublicDeps = {
   withDb: <T>(fn: (db: AnyDb) => Promise<T>) => Promise<T>;
   imageBaseUrl?: string;
   log?: (msg: string, extra?: unknown) => void;
+  logger?: StructuredLogger;
+  requestId?: string;
 };
 
 /**
@@ -34,15 +37,22 @@ async function etagOf(body: string) {
  * Errors are never cached.
  */
 async function publicGet(deps: PublicDeps, req: Request, fn: (db: AnyDb) => Promise<unknown>): Promise<Response> {
-  const log = deps.log ?? ((m, e) => console.error(m, e));
+  const log = deps.logger ?? deps.log ?? ((m, e) => console.error(m, e));
+  const requestId = deps.requestId ?? extractOrGenerateRequestId(req);
   try {
     if (req.method !== "GET" && req.method !== "HEAD") {
-      return json(405, errorBody("METHOD_NOT_ALLOWED", "Use GET."), { Allow: "GET, HEAD" });
+      return json(405, errorBody("METHOD_NOT_ALLOWED", "Use GET."), { Allow: "GET, HEAD" }, requestId);
     }
     const data = await deps.withDb(fn);
     const body = JSON.stringify(data);
     const etag = await etagOf(body);
-    const headers = { "Cache-Control": PUBLIC_CACHE, ETag: etag, "Content-Type": "application/json", Vary: "Accept-Encoding" };
+    const headers = {
+      "Cache-Control": PUBLIC_CACHE,
+      ETag: etag,
+      "Content-Type": "application/json",
+      Vary: "Accept-Encoding",
+      [REQUEST_ID_HEADER]: requestId,
+    };
 
     const inm = req.headers.get("if-none-match");
     if (inm && inm.split(",").some((t) => t.trim() === etag || t.trim() === "*")) {
@@ -50,7 +60,7 @@ async function publicGet(deps: PublicDeps, req: Request, fn: (db: AnyDb) => Prom
     }
     return new Response(req.method === "HEAD" ? null : body, { status: 200, headers });
   } catch (err) {
-    return toResponse(err, log); // private, no-store
+    return toResponse(err, log, requestId); // private, no-store
   }
 }
 

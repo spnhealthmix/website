@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { AdminModal } from "@/components/admin/admin-modal";
 import type { AdminReviewItem, ReviewStatus } from "@/lib/reviews/types";
 
 function StarRating({ rating }: { rating: number }) {
@@ -484,86 +485,75 @@ export function ReviewsManager() {
       </div>
 
       {/* Review Details & Moderation Modal */}
-      {selectedReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-[var(--color-text-primary)] font-[family-name:var(--font-heading)]">
-                  Review Moderation
-                </h3>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  ID: {selectedReview.id}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedReview(null)}
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-
+      <AdminModal
+        isOpen={Boolean(selectedReview)}
+        onClose={() => setSelectedReview(null)}
+        title="Review Moderation"
+        description={selectedReview ? `ID: ${selectedReview.id}` : undefined}
+        maxWidthClass="max-w-lg"
+      >
+        {selectedReview && (
+          <div className="space-y-4">
             <div className="space-y-3 text-sm">
               <div>
-                <span className="text-xs font-semibold text-[var(--color-text-muted)]">Product</span>
-                <p className="font-medium text-[var(--color-text-primary)]">
+                <span className="text-xs font-semibold text-[#635850]">Product</span>
+                <p className="font-medium text-[#1A1614]">
                   {selectedReview.productName}
                 </p>
               </div>
 
               <div className="flex items-center gap-4">
                 <div>
-                  <span className="text-xs font-semibold text-[var(--color-text-muted)]">Rating</span>
+                  <span className="text-xs font-semibold text-[#635850]">Rating</span>
                   <div className="mt-1">
                     <StarRating rating={selectedReview.rating} />
                   </div>
                 </div>
 
                 <div>
-                  <span className="text-xs font-semibold text-[var(--color-text-muted)]">Verified Purchase</span>
+                  <span className="text-xs font-semibold text-[#635850]">Verified Purchase</span>
                   <p className="mt-1">
                     {selectedReview.verifiedPurchase ? (
                       <span className="text-xs font-semibold text-emerald-700">Yes (Delivered Order Item)</span>
                     ) : (
-                      <span className="text-xs text-[var(--color-text-muted)]">No</span>
+                      <span className="text-xs text-[#8C7E72]">No</span>
                     )}
                   </p>
                 </div>
 
                 <div>
-                  <span className="text-xs font-semibold text-[var(--color-text-muted)]">Current Status</span>
-                  <p className="mt-1 font-semibold capitalize text-xs">
+                  <span className="text-xs font-semibold text-[#635850]">Current Status</span>
+                  <p className="mt-1 font-semibold capitalize text-xs text-[#1A1614]">
                     {selectedReview.status}
                   </p>
                 </div>
               </div>
 
               <div>
-                <span className="text-xs font-semibold text-[var(--color-text-muted)]">Reviewer</span>
-                <p className="text-xs font-medium text-[var(--color-text-primary)]">
+                <span className="text-xs font-semibold text-[#635850]">Reviewer</span>
+                <p className="text-xs font-medium text-[#1A1614]">
                   {selectedReview.reviewerName || "Customer"} ({selectedReview.reviewerEmail})
                 </p>
               </div>
 
               {selectedReview.title && (
                 <div>
-                  <span className="text-xs font-semibold text-[var(--color-text-muted)]">Title</span>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">
+                  <span className="text-xs font-semibold text-[#635850]">Title</span>
+                  <p className="text-sm font-semibold text-[#1A1614] mt-0.5">
                     {selectedReview.title}
                   </p>
                 </div>
               )}
 
               <div>
-                <span className="text-xs font-semibold text-[var(--color-text-muted)]">Review Body</span>
-                <div className="mt-1 p-3 bg-[var(--color-surface-sunken)] rounded-lg text-xs leading-relaxed text-[var(--color-text-primary)] border border-[var(--color-border)] whitespace-pre-wrap">
+                <span className="text-xs font-semibold text-[#635850]">Review Body</span>
+                <div className="mt-1 p-3 bg-[#FAF5EF] rounded-xl text-xs leading-relaxed text-[#1A1614] border border-[#E8DFD4] whitespace-pre-wrap">
                   {selectedReview.body}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">
+                <label className="block text-xs font-semibold text-[#1A1614] mb-1">
                   Admin Audit Note (Optional)
                 </label>
                 <input
@@ -571,18 +561,18 @@ export function ReviewsManager() {
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
                   placeholder="Reason for moderation action..."
-                  className="w-full text-xs py-2 px-3 bg-[var(--color-surface-sunken)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[#C45935]"
+                  className="w-full text-xs py-2 px-3 bg-white text-[#1A1614] border border-[#E8DFD4] rounded-xl focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] placeholder:text-[#8C7E72]/70"
                 />
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--color-border)]">
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#E8DFD4]">
               <button
                 type="button"
                 onClick={() => handleDelete(selectedReview.id)}
                 disabled={actionLoading}
-                className="px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-300 rounded-lg transition-colors disabled:opacity-50"
+                className="px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-300 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Remove / Hide
               </button>
@@ -593,7 +583,7 @@ export function ReviewsManager() {
                     type="button"
                     onClick={() => handleUpdateStatus(selectedReview.id, "published", adminNote)}
                     disabled={actionLoading}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     Approve / Publish
                   </button>
@@ -604,7 +594,7 @@ export function ReviewsManager() {
                     type="button"
                     onClick={() => handleUpdateStatus(selectedReview.id, "hidden", adminNote)}
                     disabled={actionLoading}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-zinc-700 hover:bg-zinc-800 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-semibold text-white bg-[#1A1614] hover:bg-[#3D332A] rounded-xl transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     Reject / Hide
                   </button>
@@ -613,15 +603,15 @@ export function ReviewsManager() {
                 <button
                   type="button"
                   onClick={() => setSelectedReview(null)}
-                  className="px-3 py-2 text-xs font-medium text-[var(--color-text-body)] hover:bg-[var(--color-surface-sunken)] border border-[var(--color-border)] rounded-lg transition-colors"
+                  className="px-3.5 py-2 text-xs font-semibold text-[#635850] hover:text-[#1A1614] hover:bg-[#FAF5EF] border border-[#E8DFD4] rounded-xl transition-colors cursor-pointer"
                 >
                   Close
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AdminModal>
     </div>
   );
 }

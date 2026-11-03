@@ -9,15 +9,21 @@ import {
   serializeClearGuestCartCookie,
 } from "@/lib/cart/guest-cart";
 import { checkEndpointRateLimit } from "@/lib/security/rate-limit";
+import { createRequestLogger, REQUEST_ID_HEADER, logError } from "@/lib/logger";
+import { captureAppException } from "@/lib/sentry";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const { logger, requestId } = createRequestLogger(req, "/api/auth/login");
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return Response.json({ error: "Please provide a valid JSON request." }, { status: 400 });
+    return Response.json(
+      { error: "Please provide a valid JSON request." },
+      { status: 400, headers: { [REQUEST_ID_HEADER]: requestId } }
+    );
   }
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -108,9 +114,15 @@ export async function POST(req: Request) {
 
       const responseHeaders = new Headers();
       responseHeaders.append("Set-Cookie", cookieHeader);
+      responseHeaders.set(REQUEST_ID_HEADER, requestId);
       if (guestItems.length > 0) {
         responseHeaders.append("Set-Cookie", serializeClearGuestCartCookie());
       }
+
+      logger.info(
+        { userId: user.id, userRole: user.role },
+        "Customer login successful"
+      );
 
       return Response.json(
         {
@@ -135,19 +147,24 @@ export async function POST(req: Request) {
       err && typeof err === "object" && "code" in err && typeof err.code === "string"
         ? err.code
         : undefined;
-    console.error("Login request failed.", {
-      name: err instanceof Error ? err.name : "UnknownError",
-      ...(code ? { code } : {}),
+    captureAppException(err, {
+      requestId,
+      route: "/api/auth/login",
+      method: "POST",
+    });
+    logError(logger, err, "Login request failed", {
+      code,
+      errorName: err instanceof Error ? err.name : "UnknownError",
     });
     if (code === "42703" || code === "42P01") {
       return Response.json(
         { error: "Authentication is temporarily unavailable." },
-        { status: 503 }
+        { status: 503, headers: { [REQUEST_ID_HEADER]: requestId } }
       );
     }
     return Response.json(
       { error: "An unexpected error occurred during sign in. Please try again." },
-      { status: 500 }
+      { status: 500, headers: { [REQUEST_ID_HEADER]: requestId } }
     );
   }
 }

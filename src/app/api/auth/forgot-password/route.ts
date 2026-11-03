@@ -3,17 +3,20 @@ import { createPasswordResetToken } from "@/lib/auth/password-reset";
 import { getEmailProvider } from "@/lib/email/provider";
 import { normalizeEmail } from "@/lib/auth/email";
 import { checkEndpointRateLimit } from "@/lib/security/rate-limit";
+import { createRequestLogger, REQUEST_ID_HEADER, logError } from "@/lib/logger";
+import { captureAppException } from "@/lib/sentry";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const { logger, requestId } = createRequestLogger(req, "/api/auth/forgot-password");
   try {
     const { email } = await req.json();
 
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return Response.json(
         { error: "Please provide a valid email address." },
-        { status: 400 }
+        { status: 400, headers: { [REQUEST_ID_HEADER]: requestId } }
       );
     }
 
@@ -83,18 +86,29 @@ export async function POST(req: Request) {
       }
 
       // Always return a generic success message to prevent account enumeration
-      return Response.json({
-        success: true,
-        message: "If an account exists with this email address, a password reset link has been sent.",
-      });
+      logger.info("Password reset request processed");
+      return Response.json(
+        {
+          success: true,
+          message: "If an account exists with this email address, a password reset link has been sent.",
+        },
+        {
+          headers: { [REQUEST_ID_HEADER]: requestId },
+        }
+      );
     } finally {
       await close();
     }
   } catch (err) {
-    console.error("Forgot password error:", err);
+    captureAppException(err, {
+      requestId,
+      route: "/api/auth/forgot-password",
+      method: "POST",
+    });
+    logError(logger, err, "Forgot password error");
     return Response.json(
       { error: "An unexpected error occurred. Please try again." },
-      { status: 500 }
+      { status: 500, headers: { [REQUEST_ID_HEADER]: requestId } }
     );
   }
 }

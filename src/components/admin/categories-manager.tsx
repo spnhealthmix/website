@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
+import { AdminModal } from "@/components/admin/admin-modal";
 import {
   Tag,
   Check,
@@ -897,224 +898,210 @@ export function CategoriesManager() {
       )}
 
       {/* ── 6. Create / Edit Category Modal ────────────────────────────────── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#1A1614]/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E8DFD4] rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3.5 border-b border-[#E8DFD4] mb-5">
-              <div>
-                <h2
-                  className="text-2xl font-bold text-[#1A1614]"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  {editingCategory ? "Edit Category" : "Add New Category"}
-                </h2>
-                <p className="text-xs text-[#635850] mt-0.5">
-                  {editingCategory
-                    ? "Update category taxonomy, description and ordering."
-                    : "Create a new product category for your store."}
-                </p>
+      <AdminModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingCategory ? "Edit Category" : "Add New Category"}
+        description={
+          editingCategory
+            ? "Update category taxonomy, description and ordering."
+            : "Create a new product category for your store."
+        }
+        maxWidthClass="max-w-lg"
+      >
+        <div>
+          {formError && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <div>
+              <label
+                htmlFor="cat-name"
+                className="block font-semibold text-[#1A1614] mb-1.5"
+              >
+                Category Name <span className="text-[#BF5330]">*</span>
+              </label>
+              <input
+                id="cat-name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Traditional Health Mixes"
+                className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="cat-slug"
+                className="block font-semibold text-[#1A1614] mb-1.5"
+              >
+                URL Slug{" "}
+                <span className="text-[#8C7E72] font-normal">
+                  (Optional — auto-generated if blank)
+                </span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8C7E72] font-mono text-xs">
+                  /
+                </span>
+                <input
+                  id="cat-slug"
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="health-mix-powders"
+                  className="w-full h-10 pl-7 pr-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs"
+                />
               </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="cat-desc"
+                className="block font-semibold text-[#1A1614] mb-1.5"
+              >
+                Description
+              </label>
+              <textarea
+                id="cat-desc"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Short description displayed in storefront headers and category listings"
+                className="w-full p-3 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs leading-relaxed"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5 pt-1">
+              <div>
+                <label
+                  htmlFor="cat-order"
+                  className="block font-semibold text-[#1A1614] mb-1.5"
+                >
+                  Display Order
+                </label>
+                <input
+                  id="cat-order"
+                  type="number"
+                  value={sortOrderValue}
+                  onChange={(e) => setSortOrderValue(Number(e.target.value))}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs"
+                />
+              </div>
+
+              <div className="flex items-center pt-6">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    className="w-4 h-4 rounded border-[#D4C5B5] text-[#BF5330] focus:ring-[#BF5330] accent-[#BF5330] cursor-pointer"
+                  />
+                  <span className="font-semibold text-xs text-[#1A1614]">
+                    Visible in Store
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-5 border-t border-[#E8DFD4]">
               <button
                 type="button"
                 onClick={closeModal}
-                className="w-8 h-8 rounded-lg text-[#8C7E72] hover:text-[#1A1614] hover:bg-[#FAF5EF] flex items-center justify-center cursor-pointer transition-colors"
-                aria-label="Close modal"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div>
-                <label
-                  htmlFor="cat-name"
-                  className="block font-semibold text-[#1A1614] mb-1.5"
-                >
-                  Category Name <span className="text-[#BF5330]">*</span>
-                </label>
-                <input
-                  id="cat-name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Traditional Health Mixes"
-                  className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-sm focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="cat-slug"
-                  className="block font-semibold text-[#1A1614] mb-1.5"
-                >
-                  URL Slug{" "}
-                  <span className="text-[#8C7E72] font-normal">
-                    (Optional — auto-generated if blank)
-                  </span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8C7E72] font-mono text-xs">
-                    /
-                  </span>
-                  <input
-                    id="cat-slug"
-                    type="text"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    placeholder="health-mix-powders"
-                    className="w-full h-10 pl-7 pr-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="cat-desc"
-                  className="block font-semibold text-[#1A1614] mb-1.5"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="cat-desc"
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Short description displayed in storefront headers and category listings"
-                  className="w-full p-3 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs leading-relaxed"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5 pt-1">
-                <div>
-                  <label
-                    htmlFor="cat-order"
-                    className="block font-semibold text-[#1A1614] mb-1.5"
-                  >
-                    Display Order
-                  </label>
-                  <input
-                    id="cat-order"
-                    type="number"
-                    value={sortOrderValue}
-                    onChange={(e) => setSortOrderValue(Number(e.target.value))}
-                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-all shadow-2xs"
-                  />
-                </div>
-
-                <div className="flex items-center pt-6">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={(e) => setIsActive(e.target.checked)}
-                      className="w-4 h-4 rounded border-[#D4C5B5] text-[#BF5330] focus:ring-[#BF5330] accent-[#BF5330] cursor-pointer"
-                    />
-                    <span className="font-semibold text-xs text-[#1A1614]">
-                      Visible in Store
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-5 border-t border-[#E8DFD4]">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={formSubmitting}
-                  className="px-4 py-2 rounded-xl border border-[#E8DFD4] text-xs font-semibold text-[#635850] hover:text-[#1A1614] hover:bg-[#FAF5EF] transition-colors cursor-pointer shadow-2xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={formSubmitting}
-                  className="px-5 py-2 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  {formSubmitting
-                    ? "Saving..."
-                    : editingCategory
-                    ? "Update Category"
-                    : "Create Category"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── 7. Delete Confirmation Modal ───────────────────────────────────── */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 bg-[#1A1614]/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E8DFD4] rounded-2xl max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3
-                  className="text-lg font-bold text-[#1A1614]"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  Delete Category
-                </h3>
-                <p className="text-xs text-[#635850]">
-                  This action cannot be undone if completed.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-[#635850] leading-relaxed mb-4">
-              Are you sure you want to delete{" "}
-              <span className="font-bold text-[#1A1614]">
-                &ldquo;{deleteTarget.name}&rdquo;
-              </span>
-              ?
-            </p>
-
-            {deleteTarget.productCount > 0 ? (
-              <div className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11.5px] leading-relaxed">
-                <span className="font-bold block mb-0.5">
-                  Restricted Action: {deleteTarget.productCount} associated product(s)
-                </span>
-                The database will protect products and reject deletion until they
-                are moved to another category or deleted. Consider deactivating
-                the category instead.
-              </div>
-            ) : (
-              <div className="mb-5 p-3 rounded-xl bg-[#FAF5EF] border border-[#E8DFD4] text-[#635850] text-[11.5px]">
-                This category has 0 associated products and can be safely removed.
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
+                disabled={formSubmitting}
                 className="px-4 py-2 rounded-xl border border-[#E8DFD4] text-xs font-semibold text-[#635850] hover:text-[#1A1614] hover:bg-[#FAF5EF] transition-colors cursor-pointer shadow-2xs"
               >
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
+                type="submit"
+                disabled={formSubmitting}
+                className="px-5 py-2 rounded-xl bg-[#BF5330] hover:bg-[#8F3E20] text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
               >
-                {deleting ? "Deleting..." : "Delete Category"}
+                {formSubmitting
+                  ? "Saving..."
+                  : editingCategory
+                  ? "Update Category"
+                  : "Create Category"}
               </button>
             </div>
+          </form>
+        </div>
+      </AdminModal>
+
+      {/* ── 7. Delete Confirmation Modal ───────────────────────────────────── */}
+      <AdminModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        maxWidthClass="max-w-md"
+      >
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3
+                className="text-lg font-bold text-[#1A1614]"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                Delete Category
+              </h3>
+              <p className="text-xs text-[#635850]">
+                This action cannot be undone if completed.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-[#635850] leading-relaxed mb-4">
+            Are you sure you want to delete{" "}
+            <span className="font-bold text-[#1A1614]">
+              &ldquo;{deleteTarget?.name}&rdquo;
+            </span>
+            ?
+          </p>
+
+          {deleteTarget && deleteTarget.productCount > 0 ? (
+            <div className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11.5px] leading-relaxed">
+              <span className="font-bold block mb-0.5">
+                Restricted Action: {deleteTarget.productCount} associated product(s)
+              </span>
+              The database will protect products and reject deletion until they
+              are moved to another category or deleted. Consider deactivating
+              the category instead.
+            </div>
+          ) : (
+            <div className="mb-5 p-3 rounded-xl bg-[#FAF5EF] border border-[#E8DFD4] text-[#635850] text-[11.5px]">
+              This category has 0 associated products and can be safely removed.
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+              className="px-4 py-2 rounded-xl border border-[#E8DFD4] text-xs font-semibold text-[#635850] hover:text-[#1A1614] hover:bg-[#FAF5EF] transition-colors cursor-pointer shadow-2xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {deleting ? "Deleting..." : "Delete Category"}
+            </button>
           </div>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

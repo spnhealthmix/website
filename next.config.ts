@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const config: NextConfig = {
   images: {
@@ -34,4 +35,13 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withSentryConfig(config, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+});

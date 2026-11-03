@@ -13,6 +13,9 @@ export type CheckoutResult = {
   expiresAt: Date;
 };
 
+import { rootLogger } from "../logger";
+import { captureAppException } from "../sentry";
+
 /**
  * 1. Commit order + items + stock (one DB transaction).
  * 2. Only then call Razorpay, outside any DB transaction, so a slow external call
@@ -27,7 +30,7 @@ export async function startCheckout(
   db: AnyDb,
   gateway: PaymentGateway,
   input: CreateOrderInput,
-  log: (msg: string, err?: unknown) => void = console.error,
+  log: (msg: string, err?: unknown) => void = (msg, err) => rootLogger.error({ err }, msg),
 ): Promise<CheckoutResult> {
   const order = await createPendingOrder(db, input);
 
@@ -54,9 +57,15 @@ export async function startCheckout(
       expiresAt: order.expiresAt,
     };
   } catch (err) {
+    captureAppException(err, {
+      extra: { orderId: order.orderId, orderNumber: order.orderNumber, reason: "razorpay_order_creation_failed" },
+    });
     try {
       await releaseOrderStock(db, order.orderId, { reason: "razorpay_order_failed" });
     } catch (releaseErr) {
+      captureAppException(releaseErr, {
+        extra: { orderId: order.orderId, orderNumber: order.orderNumber, reason: "stock_release_failed_during_checkout_abort" },
+      });
       log(`Failed to release stock for order ${order.orderId}; expiry cron will retry`, releaseErr);
     }
     throw new OrderError("PAYMENT_PROVIDER_ERROR", "Could not start payment. Please try again.", undefined, err);

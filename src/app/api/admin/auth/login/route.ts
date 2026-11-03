@@ -4,17 +4,20 @@ import { normalizeEmail, profileEmailMatches } from "@/lib/auth/email";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, serializeSessionCookie } from "@/lib/auth/session";
 import { checkEndpointRateLimit } from "@/lib/security/rate-limit";
+import { createRequestLogger, REQUEST_ID_HEADER, logError } from "@/lib/logger";
+import { captureAppException } from "@/lib/sentry";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const { logger, requestId } = createRequestLogger(req, "/api/admin/auth/login", { userRole: "admin" });
   try {
     const { email, password } = await req.json();
 
     if (!email || typeof email !== "string" || !password || typeof password !== "string") {
       return Response.json(
         { error: "Please enter your administrative email and password." },
-        { status: 400 }
+        { status: 400, headers: { [REQUEST_ID_HEADER]: requestId } }
       );
     }
 
@@ -97,6 +100,8 @@ export async function POST(req: Request) {
       const { sessionToken, expiresAt } = await createSession(db, user.id);
       const cookieHeader = serializeSessionCookie(sessionToken, expiresAt);
 
+      logger.info({ userId: user.id, userRole: "admin" }, "Admin login successful");
+
       return Response.json(
         {
           success: true,
@@ -111,6 +116,7 @@ export async function POST(req: Request) {
           status: 200,
           headers: {
             "Set-Cookie": cookieHeader,
+            [REQUEST_ID_HEADER]: requestId,
           },
         }
       );
@@ -118,10 +124,15 @@ export async function POST(req: Request) {
       await close();
     }
   } catch (err) {
-    console.error("Admin login error:", err);
+    captureAppException(err, {
+      requestId,
+      route: "/api/admin/auth/login",
+      method: "POST",
+    });
+    logError(logger, err, "Admin login error");
     return Response.json(
       { error: "An unexpected error occurred during administrative sign in." },
-      { status: 500 }
+      { status: 500, headers: { [REQUEST_ID_HEADER]: requestId } }
     );
   }
 }

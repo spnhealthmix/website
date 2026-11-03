@@ -24,6 +24,7 @@
   --color-brand-primary:       #BF5330;
   --color-brand-primary-dark:  #8F3E20;
   --color-brand-primary-light: #F4DFD7;
+  --color-brand-secondary:     #8F3E20;
   --color-deep-terracotta:     #8F3E20;
   --color-warm-sand:           #D9C6AA;
   --color-muted-olive:         #56634A;
@@ -33,11 +34,13 @@
   --color-turmeric-gold:       #C99A3B;
 
   /* ── Surface Colors (Approved Natural Surfaces) ─────────────────────────── */
-  --color-surface:        #FFFBF7;
-  --color-surface-raised: #FFFFFF;
-  --color-surface-sunken: #F5EFE8;
-  --color-surface-sand:   #EFE7DD;
-  --color-white:          #FFFFFF;
+  --color-surface:             #FFFBF7;
+  --color-surface-raised:      #FFFFFF;
+  --color-surface-elevated:    #FFFFFF;
+  --color-surface-warm:        #FAF5EF;
+  --color-surface-sunken:      #F5EFE8;
+  --color-surface-sand:        #EFE7DD;
+  --color-white:               #FFFFFF;
 
   /* ── Text Colors ────────────────────────────────────────────────────────── */
   --color-text-primary:   #1A1614;
@@ -48,6 +51,7 @@
   /* ── Border Colors ──────────────────────────────────────────────────────── */
   --color-border:         #E8DFD4;
   --color-border-strong:  #D6C7BA;
+  --color-border-subtle:  #E8DFD4;
 
   /* ── Semantic Colors ──────────────────────────────────────────────────────── */
   --color-success:        #247B49;

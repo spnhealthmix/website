@@ -3,6 +3,13 @@ import { CartError } from "../cart/errors";
 import { CustomerError } from "../customers/errors";
 import { InvalidSignatureError } from "../customers/orders";
 import { OrderError } from "../orders/common";
+import { captureAppException, shouldCaptureError } from "../sentry";
+
+export const REQUEST_ID_HEADER = "x-request-id";
+
+export interface ErrorLogTarget {
+  error: (context: any, message?: string) => void;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -27,14 +34,24 @@ export function errorBody(code: string, message: string, extra?: Record<string, 
   };
 }
 
-export function json(status: number, body: unknown, headers?: HeadersInit): Response {
+export function json(
+  status: number,
+  body: unknown,
+  headers?: HeadersInit,
+  requestId?: string,
+): Response {
+  const finalHeaders = new Headers(headers);
+  finalHeaders.set("Content-Type", "application/json");
+  if (!finalHeaders.has("Cache-Control")) {
+    finalHeaders.set("Cache-Control", "private, no-store");
+  }
+  if (requestId && !finalHeaders.has(REQUEST_ID_HEADER)) {
+    finalHeaders.set(REQUEST_ID_HEADER, requestId);
+  }
+
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "private, no-store",
-      ...(headers ?? {}),
-    },
+    headers: finalHeaders,
   });
 }
 
@@ -83,14 +100,18 @@ export function isUniqueViolation(err: unknown): boolean {
 
 export function toResponse(
   err: unknown,
-  log?: (msg: string, extra?: unknown) => void,
+  log?: ((msg: string, extra?: unknown) => void) | ErrorLogTarget,
+  requestId?: string,
 ): Response {
   if (err instanceof ApiError) {
-    return json(err.status, errorBody(err.code, err.message, err.extra), err.headers);
+    if (err.status >= 500) {
+      captureAppException(err, { requestId });
+    }
+    return json(err.status, errorBody(err.code, err.message, err.extra), err.headers, requestId);
   }
 
   if (err instanceof InvalidSignatureError) {
-    return json(400, errorBody("INVALID_SIGNATURE", err.message || "Payment signature could not be verified."));
+    return json(400, errorBody("INVALID_SIGNATURE", err.message || "Payment signature could not be verified."), undefined, requestId);
   }
 
   if (err instanceof CustomerError) {
@@ -103,19 +124,21 @@ export function toResponse(
     ) {
       status = 404;
     }
-    return json(status, errorBody(err.code, err.message, err.extra));
+    return json(status, errorBody(err.code, err.message, err.extra), undefined, requestId);
   }
 
   if (err instanceof OrderError) {
     let status = 400;
-    if (err.code === "PAYMENT_PROVIDER_ERROR") status = 502;
-    else if (err.code === "PRICE_CHANGED") status = 409;
+    if (err.code === "PAYMENT_PROVIDER_ERROR") {
+      status = 502;
+      captureAppException(err, { requestId });
+    } else if (err.code === "PRICE_CHANGED") status = 409;
     else if (err.code === "INSUFFICIENT_STOCK" || err.code === "VARIANT_UNAVAILABLE") status = 409;
     else if (err.code === "EMPTY_CART" || err.code === "INVALID_QUANTITY") status = 422;
 
     const extra: Record<string, unknown> = { ...(err.extra ?? {}) };
     if (err.variantId) extra.variantId = err.variantId;
-    return json(status, errorBody(err.code, err.message, extra));
+    return json(status, errorBody(err.code, err.message, extra), undefined, requestId);
   }
 
   if (err instanceof CartError) {
@@ -128,7 +151,7 @@ export function toResponse(
     ) {
       status = 409;
     }
-    return json(status, errorBody(err.code, err.message, err.extra));
+    return json(status, errorBody(err.code, err.message, err.extra), undefined, requestId);
   }
 
   if (err instanceof ZodError) {
@@ -139,9 +162,24 @@ export function toResponse(
         fields[path] = issue.message;
       }
     }
-    return json(422, errorBody("VALIDATION_ERROR", "Validation failed.", { fields }));
+    return json(422, errorBody("VALIDATION_ERROR", "Validation failed.", { fields }), undefined, requestId);
   }
 
-  log?.("Unhandled error", err);
-  return json(500, errorBody("INTERNAL_ERROR", "An unexpected error occurred."));
+  if (log) {
+    if (typeof log === "function") {
+      log("Unhandled error", err);
+    } else if (typeof log === "object" && typeof log.error === "function") {
+      const errName = err instanceof Error ? err.name : "UnknownError";
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      log.error({ errName, errMessage, stack, requestId }, "Unhandled error");
+    }
+  }
+
+  // Unhandled server-side error
+  if (shouldCaptureError(err)) {
+    captureAppException(err, { requestId });
+  }
+
+  return json(500, errorBody("INTERNAL_ERROR", "An unexpected error occurred."), undefined, requestId);
 }

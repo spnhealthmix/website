@@ -22,6 +22,7 @@ import {
   Check,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { AdminModal } from "@/components/admin/admin-modal";
 
 type ProductListItem = {
   id: string;
@@ -973,60 +974,47 @@ export function ProductsList() {
       )}
 
       {/* ── 6. Delete Confirmation Modal ───────────────────────────────────── */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 bg-[#1A1614]/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E8DFD4] rounded-2xl max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3
-                  className="text-lg font-bold text-[#1A1614]"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  Delete Product
-                </h3>
-                <p className="text-xs text-[#635850]">
-                  This action cannot be undone if completed.
-                </p>
-              </div>
-            </div>
+      <AdminModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Product?"
+        description="Accounting and order history preservation notice."
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-[#635850] leading-relaxed">
+            Are you sure you want to delete{" "}
+            <span className="font-bold text-[#1A1614]">
+              &ldquo;{deleteTarget?.name}&rdquo;
+            </span>
+            ?
+          </p>
+          <div className="p-3.5 rounded-xl bg-[#FAF5EF] border border-[#E8DFD4] text-[#8C7E72] text-[11.5px] leading-relaxed">
+            Note: If this product has ever been ordered by a customer, the
+            database will protect order audit history and reject deletion. In
+            that case, set the product to &ldquo;Inactive&rdquo; instead.
+          </div>
 
-            <p className="text-xs text-[#635850] leading-relaxed mb-5">
-              Are you sure you want to delete{" "}
-              <span className="font-bold text-[#1A1614]">
-                &ldquo;{deleteTarget.name}&rdquo;
-              </span>
-              ?
-              <span className="block mt-2 p-2.5 rounded-lg bg-[#FAF5EF] border border-[#E8DFD4] text-[#8C7E72] text-[11.5px]">
-                Note: If this product has ever been ordered by a customer, the
-                database will protect order audit history and reject deletion. In
-                that case, set the product to &ldquo;Inactive&rdquo; instead.
-              </span>
-            </p>
-
-            <div className="flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl border border-[#E8DFD4] text-xs font-semibold text-[#635850] hover:text-[#1A1614] hover:bg-[#FAF5EF] transition-colors cursor-pointer shadow-2xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                {deleting ? "Deleting..." : "Delete Product"}
-              </button>
-            </div>
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-[#E8DFD4]">
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+              className="px-4 py-2 rounded-xl border border-[#E8DFD4] text-xs font-semibold text-[#635850] hover:text-[#1A1614] hover:bg-[#FAF5EF] transition-colors cursor-pointer shadow-2xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {deleting ? "Deleting..." : "Delete Product"}
+            </button>
           </div>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

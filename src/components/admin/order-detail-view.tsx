@@ -21,6 +21,7 @@ import {
   Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AdminModal } from "@/components/admin/admin-modal";
 import { DEFAULT_BUSINESS_SETTINGS, type BusinessSettings } from "@/lib/settings/types";
 
 type OrderItem = {
@@ -1270,144 +1271,143 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
       </div>
 
       {/* ── Status Transition Modal ─────────────────────────────────────────── */}
-      {statusModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E8DFD4] rounded-[12px] max-w-md w-full p-6 shadow-lg text-xs font-[family-name:var(--font-body)]">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E8DFD4] mb-4">
-              <h3 className="font-[family-name:var(--font-heading)] text-lg font-bold text-[#1A1614]">
-                {targetStatus === "cancelled"
-                  ? "Cancel Order"
-                  : `Update Status to "${STATUS_CONFIG[targetStatus]?.label || targetStatus}"`}
-              </h3>
+      <AdminModal
+        isOpen={statusModalOpen}
+        onClose={() => setStatusModalOpen(false)}
+        title={
+          targetStatus === "cancelled"
+            ? "Cancel Order"
+            : `Update Status to "${STATUS_CONFIG[targetStatus]?.label || targetStatus}"`
+        }
+        description={
+          targetStatus === "cancelled"
+            ? "Releases inventory and updates order status to cancelled."
+            : "Update fulfillment or payment lifecycle status for this order."
+        }
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          {transitionError && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+              {transitionError}
+            </div>
+          )}
+
+          <form onSubmit={handleTransitionSubmit} className="space-y-4 text-xs">
+            {targetStatus === "cancelled" ? (
+              <div>
+                <p className="text-[#B42318] font-medium mb-3 leading-relaxed">
+                  Cancelling this order will release held variant inventory back to available stock.
+                </p>
+                <label
+                  htmlFor="cancel-reason"
+                  className="block font-semibold text-[#1A1614] mb-1.5"
+                >
+                  Cancellation Reason (Required) <span className="text-[#B42318]">*</span>
+                </label>
+                <textarea
+                  id="cancel-reason"
+                  rows={3}
+                  required
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="e.g. Customer requested cancellation before dispatch..."
+                  className="w-full p-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                />
+              </div>
+            ) : targetStatus === "shipped" ? (
+              <div className="space-y-3">
+                <p className="text-[#635850]">
+                  Provide dispatch courier details to complete shipping transition.
+                </p>
+                <div>
+                  <label
+                    htmlFor="ship-courier"
+                    className="block font-semibold text-[#1A1614] mb-1.5"
+                  >
+                    Courier Partner <span className="text-[#BF5330]">*</span>
+                  </label>
+                  <input
+                    id="ship-courier"
+                    type="text"
+                    required
+                    value={courierName}
+                    onChange={(e) => setCourierName(e.target.value)}
+                    placeholder="e.g. Delhivery, India Post"
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ship-awb" className="block font-semibold text-[#1A1614] mb-1.5">
+                    AWB / Tracking Number <span className="text-[#BF5330]">*</span>
+                  </label>
+                  <input
+                    id="ship-awb"
+                    type="text"
+                    required
+                    value={awb}
+                    onChange={(e) => setAwb(e.target.value)}
+                    placeholder="e.g. 1234567890"
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="ship-track-url"
+                      className="text-xs font-semibold text-[#1A1614]"
+                    >
+                      Tracking Link
+                    </label>
+                    <span className="text-[11px] text-[#8C7E72]">Optional</span>
+                  </div>
+                  <input
+                    id="ship-track-url"
+                    type="url"
+                    value={trackingUrl}
+                    onChange={(e) => setTrackingUrl(e.target.value)}
+                    placeholder="https://track.courier.in/..."
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#E8DFD4] bg-white text-[#1A1614] font-mono text-xs placeholder:text-[#8C7E72]/70 focus:outline-none focus:border-[#BF5330] focus:ring-1 focus:ring-[#BF5330] transition-colors shadow-2xs"
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-[#635850] leading-relaxed">
+                Confirm transition of this order from{" "}
+                <strong className="text-[#1A1614]">{statusCfg.label}</strong> to{" "}
+                <strong className="text-[#1A1614]">{STATUS_CONFIG[targetStatus]?.label || targetStatus}</strong>.
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-[#E8DFD4]">
               <button
                 type="button"
                 onClick={() => setStatusModalOpen(false)}
-                className="text-[#635850] hover:text-[#1A1614] text-lg leading-none"
+                disabled={transitioning}
+                className="px-4 py-2 rounded-xl border border-[#E8DFD4] bg-[#FAF5EF] text-[#635850] hover:bg-white hover:text-[#1A1614] font-semibold text-xs transition-colors cursor-pointer"
               >
-                &times;
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={transitioning}
+                className={cn(
+                  "px-4 py-2 rounded-xl font-semibold text-white text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50",
+                  targetStatus === "cancelled"
+                    ? "bg-[#B42318] hover:bg-[#912018]"
+                    : "bg-[#BF5330] hover:bg-[#8F3E20]"
+                )}
+              >
+                {transitioning
+                  ? "Updating..."
+                  : targetStatus === "cancelled"
+                  ? "Confirm Cancellation"
+                  : "Update Status"}
               </button>
             </div>
-
-            {transitionError && (
-              <div className="mb-4 p-3 rounded-[8px] bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs font-medium">
-                {transitionError}
-              </div>
-            )}
-
-            <form onSubmit={handleTransitionSubmit} className="space-y-4">
-              {targetStatus === "cancelled" ? (
-                <div>
-                  <p className="text-[#B42318] font-medium mb-3 leading-relaxed">
-                    Cancelling this order will release held variant inventory back to available
-                    stock.
-                  </p>
-                  <label
-                    htmlFor="cancel-reason"
-                    className="block font-medium text-[#1A1614] mb-1"
-                  >
-                    Cancellation Reason (Required) *
-                  </label>
-                  <textarea
-                    id="cancel-reason"
-                    rows={3}
-                    required
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="e.g. Customer requested cancellation before dispatch..."
-                    className="w-full px-3 py-2 rounded-[8px] border border-[#E8DFD4] bg-[#FAF5EF]/60 focus:outline-none focus:border-[#BF5330] text-xs text-[#1A1614]"
-                  />
-                </div>
-              ) : targetStatus === "shipped" ? (
-                <div className="space-y-3">
-                  <p className="text-[#635850]">
-                    Provide dispatch courier details to complete shipping transition.
-                  </p>
-                  <div>
-                    <label
-                      htmlFor="ship-courier"
-                      className="block font-medium text-[#1A1614] mb-1"
-                    >
-                      Courier Partner *
-                    </label>
-                    <input
-                      id="ship-courier"
-                      type="text"
-                      required
-                      value={courierName}
-                      onChange={(e) => setCourierName(e.target.value)}
-                      placeholder="e.g. Delhivery, India Post"
-                      className="w-full px-3 py-2 rounded-[6px] border border-[#E8DFD4] bg-[#FAF5EF]/60 focus:outline-none focus:border-[#BF5330] text-xs text-[#1A1614]"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="ship-awb" className="block font-medium text-[#1A1614] mb-1">
-                      AWB / Tracking Number *
-                    </label>
-                    <input
-                      id="ship-awb"
-                      type="text"
-                      required
-                      value={awb}
-                      onChange={(e) => setAwb(e.target.value)}
-                      placeholder="e.g. 1234567890"
-                      className="w-full px-3 py-2 rounded-[6px] border border-[#E8DFD4] bg-[#FAF5EF]/60 focus:outline-none focus:border-[#BF5330] font-mono text-xs text-[#1A1614]"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="ship-track-url"
-                      className="block font-medium text-[#1A1614] mb-1"
-                    >
-                      Tracking Link (Optional)
-                    </label>
-                    <input
-                      id="ship-track-url"
-                      type="url"
-                      value={trackingUrl}
-                      onChange={(e) => setTrackingUrl(e.target.value)}
-                      placeholder="https://track.courier.in/..."
-                      className="w-full px-3 py-2 rounded-[6px] border border-[#E8DFD4] bg-[#FAF5EF]/60 focus:outline-none focus:border-[#BF5330] font-mono text-xs text-[#1A1614]"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[#635850] leading-relaxed">
-                  Confirm transition of this order from{" "}
-                  <strong>{statusCfg.label}</strong> to{" "}
-                  <strong>{STATUS_CONFIG[targetStatus]?.label || targetStatus}</strong>.
-                </p>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#E8DFD4]">
-                <button
-                  type="button"
-                  onClick={() => setStatusModalOpen(false)}
-                  disabled={transitioning}
-                  className="px-3.5 py-1.5 rounded-[6px] border border-[#E8DFD4] text-[#635850] hover:bg-[#FAF5EF]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={transitioning}
-                  className={cn(
-                    "px-4 py-1.5 rounded-[6px] font-semibold text-white transition-colors disabled:opacity-50",
-                    targetStatus === "cancelled"
-                      ? "bg-[#B42318] hover:bg-[#912018]"
-                      : "bg-[#BF5330] hover:bg-[#8F3E20]"
-                  )}
-                >
-                  {transitioning
-                    ? "Updating..."
-                    : targetStatus === "cancelled"
-                    ? "Confirm Cancellation"
-                    : "Update Status"}
-                </button>
-              </div>
-            </form>
-          </div>
+          </form>
         </div>
-      )}
+      </AdminModal>
       </div>
 
       {/* ── Dedicated Print-Only Shipping Address Slip ─────────────────────── */}
