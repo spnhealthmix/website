@@ -1,4 +1,4 @@
-CREATE TABLE "combo_offers" (
+CREATE TABLE IF NOT EXISTS "combo_offers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"desktop_image_url" text NOT NULL,
@@ -10,11 +10,11 @@ CREATE TABLE "combo_offers" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "order_counters" (
+CREATE TABLE IF NOT EXISTS "order_counters" (
 	"date" text PRIMARY KEY NOT NULL,
 	"last_value" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "combo_offers_active_order_idx" ON "combo_offers" USING btree ("is_active","display_order");
+CREATE INDEX IF NOT EXISTS "combo_offers_active_order_idx" ON "combo_offers" USING btree ("is_active","display_order");
