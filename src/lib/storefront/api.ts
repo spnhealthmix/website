@@ -493,4 +493,34 @@ export const fetchComboOffersData = cache(async (): Promise<Record<string, Combo
   }
 });
 
+export type StorefrontComboOffer = {
+  id: string;
+  name: string;
+  desktopImageUrl: string;
+  mobileImageUrl: string;
+  destinationUrl: string;
+  displayOrder: number;
+};
+
+export const fetchActiveComboOffers = cache(async (): Promise<StorefrontComboOffer[]> => {
+  const { db } = getDeps();
+  if (!db) return [];
+  try {
+    const { getActiveComboOffers } = await import("@/lib/combo-offers/service");
+    const rows = await getActiveComboOffers(db);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      desktopImageUrl: r.desktopImageUrl,
+      mobileImageUrl: r.mobileImageUrl,
+      destinationUrl: r.destinationUrl,
+      displayOrder: r.displayOrder,
+    }));
+  } catch (err) {
+    console.error("Failed to load active combo offers from database:", err);
+    return [];
+  }
+});
+
+
 

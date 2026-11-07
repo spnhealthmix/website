@@ -127,7 +127,7 @@ export function sniffImage(b: Uint8Array): SniffedImage | null {
 }
 
 /** Random, immutable object names: no user input in the key, so no traversal and no collisions. */
-export function newImageKey(prefix: "products" | "categories", ownerId: string, ext: string) {
+export function newImageKey(prefix: "products" | "categories" | "combo-offers", ownerId: string, ext: string) {
   return `${prefix}/${ownerId}/${crypto.randomUUID()}.${ext}`;
 }
 

@@ -24,6 +24,18 @@ import {
   couponCreateSchema, couponUpdateSchema, offerCreateSchema, offerUpdateSchema,
 } from "../discounts/validation";
 import {
+  comboOfferCreateSchema,
+  comboOfferUpdateSchema,
+} from "../combo-offers/validation";
+import {
+  createComboOffer,
+  deleteComboOffer,
+  getComboOffer,
+  listComboOffers,
+  updateComboOffer,
+  uploadComboOfferPoster,
+} from "../combo-offers/service";
+import {
   adminReviewQuerySchema, adminReviewStatusUpdateSchema,
 } from "../reviews/validation";
 import {
@@ -71,6 +83,7 @@ const variantIdOf = (id?: string) => idOr404(id, "VARIANT_NOT_FOUND", "Variant")
 const imageIdOf = (id?: string) => idOr404(id, "IMAGE_NOT_FOUND", "Image");
 const offerIdOf = (id?: string) => idOr404(id, "OFFER_NOT_FOUND", "Offer");
 const couponIdOf = (id?: string) => idOr404(id, "COUPON_NOT_FOUND", "Coupon");
+const comboOfferIdOf = (id?: string) => idOr404(id, "NOT_FOUND", "Combo offer");
 const reviewIdOf = (id?: string) => idOr404(id, "REVIEW_NOT_FOUND", "Review");
 
 const storageOf = (deps: ApiDeps): ObjectStorage => {
@@ -369,6 +382,45 @@ export const adminUpdateBusinessSettingsH = (req: Request, deps: ApiDeps) =>
     const body = validate(updateBusinessSettingsSchema, await readJson(req));
     return json(200, await updateBusinessSettings(db, adminId, body));
   });
+
+/* ------------------------------ Combo Offers ------------------------------ */
+
+export const adminListComboOffers = (req: Request, deps: ApiDeps) =>
+  adminSecured(deps, req, { mutating: false }, async ({ db }) => {
+    return json(200, { comboOffers: await listComboOffers(db) });
+  });
+
+export const adminGetComboOffer = (req: Request, deps: ApiDeps, id: string) =>
+  adminSecured(deps, req, { mutating: false }, async ({ db }) => {
+    return json(200, await getComboOffer(db, comboOfferIdOf(id)));
+  });
+
+export const adminCreateComboOffer = (req: Request, deps: ApiDeps) =>
+  adminSecured(deps, req, { mutating: true }, async ({ db, adminId }) => {
+    const body = validate(comboOfferCreateSchema, await readJson(req));
+    return json(201, await createComboOffer(db, adminId, body));
+  });
+
+export const adminUpdateComboOffer = (req: Request, deps: ApiDeps, id: string) =>
+  adminSecured(deps, req, { mutating: true }, async ({ db, adminId }) => {
+    const body = validate(comboOfferUpdateSchema, await readJson(req));
+    return json(200, await updateComboOffer(db, deps.storage, adminId, comboOfferIdOf(id), body, { log: deps.log }));
+  });
+
+export const adminDeleteComboOffer = (req: Request, deps: ApiDeps, id: string) =>
+  adminSecured(deps, req, { mutating: true }, async ({ db, adminId }) => {
+    await deleteComboOffer(db, deps.storage, adminId, comboOfferIdOf(id), { log: deps.log });
+    return json(200, { deleted: true });
+  });
+
+export const adminUploadComboOfferImage = (req: Request, deps: ApiDeps) =>
+  adminSecured(deps, req, { mutating: true }, async ({}) => {
+    const storage = storageOf(deps);
+    const f = await readUpload(req);
+    const result = await uploadComboOfferPoster(storage, f.bytes, { ...base(deps), log: deps.log });
+    return json(201, result);
+  });
+
 
 
 

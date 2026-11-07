@@ -5,11 +5,15 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface HeroSlide {
-  id: number;
+  id: string | number;
   portraitSrc: string;
   desktopSrc: string;
   alt: string;
   href: string;
+}
+
+export interface HeroSliderProps {
+  slides?: HeroSlide[];
 }
 
 export const HERO_SLIDES: HeroSlide[] = [
@@ -46,24 +50,29 @@ export const HERO_SLIDES: HeroSlide[] = [
 const AUTO_SLIDE_INTERVAL = 4500;
 const HEADER_HEIGHT_PX = 64;
 
-export function HeroSlider() {
+export function HeroSlider({ slides }: HeroSliderProps = {}) {
+  const effectiveSlides = slides && slides.length > 0 ? slides : HERO_SLIDES;
+  const total = effectiveSlides.length;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
-  const total = HERO_SLIDES.length;
-
   const goToNext = useCallback(() => {
+    if (total <= 1) return;
     setCurrentIndex((prev) => (prev + 1) % total);
   }, [total]);
 
   const goToPrev = useCallback(() => {
+    if (total <= 1) return;
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
 
   useEffect(() => {
+    if (total <= 1) return;
+
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
@@ -73,19 +82,21 @@ export function HeroSlider() {
     const timer = window.setInterval(goToNext, AUTO_SLIDE_INTERVAL);
 
     return () => window.clearInterval(timer);
-  }, [isPaused, goToNext]);
+  }, [isPaused, goToNext, total]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (total <= 1) return;
     touchStartX.current = e.targetTouches[0].clientX;
     touchEndX.current = null;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (total <= 1) return;
     touchEndX.current = e.targetTouches[0].clientX;
   };
 
   const handleTouchEnd = () => {
-    if (touchStartX.current === null || touchEndX.current === null) return;
+    if (total <= 1 || touchStartX.current === null || touchEndX.current === null) return;
 
     const diff = touchStartX.current - touchEndX.current;
 
@@ -97,6 +108,7 @@ export function HeroSlider() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (total <= 1) return;
     if (e.key === "ArrowLeft") goToPrev();
     else if (e.key === "ArrowRight") goToNext();
   };
@@ -140,7 +152,7 @@ export function HeroSlider() {
           transform: `translate3d(-${currentIndex * 100}%, 0, 0)`,
         }}
       >
-        {HERO_SLIDES.map((slide, idx) => (
+        {effectiveSlides.map((slide, idx) => (
           <div
             key={slide.id}
             role="group"
@@ -192,83 +204,89 @@ export function HeroSlider() {
         ))}
       </div>
 
-      {/* Previous slide */}
-      <button
-        type="button"
-        onClick={goToPrev}
-        aria-label="Previous promotional slide"
-        className="
-          absolute left-2.5 sm:left-4 lg:left-6 top-1/2 z-20
-          flex h-9 w-9 -translate-y-1/2
-          items-center justify-center
-          rounded-full border border-[#E8DFD4]/80
-          bg-white/90 text-[#1A1614] shadow-md
-          transition hover:bg-white hover:shadow-lg
-          focus-visible:outline focus-visible:outline-2
-          focus-visible:outline-[#BF5330]
-          sm:h-11 sm:w-11
-        "
-      >
-        <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
-      </button>
+      {/* Previous slide - only shown when more than 1 slide */}
+      {total > 1 && (
+        <button
+          type="button"
+          onClick={goToPrev}
+          aria-label="Previous promotional slide"
+          className="
+            absolute left-2.5 sm:left-4 lg:left-6 top-1/2 z-20
+            flex h-9 w-9 -translate-y-1/2
+            items-center justify-center
+            rounded-full border border-[#E8DFD4]/80
+            bg-white/90 text-[#1A1614] shadow-md
+            transition hover:bg-white hover:shadow-lg
+            focus-visible:outline focus-visible:outline-2
+            focus-visible:outline-[#BF5330]
+            sm:h-11 sm:w-11
+          "
+        >
+          <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      )}
 
-      {/* Next slide */}
-      <button
-        type="button"
-        onClick={goToNext}
-        aria-label="Next promotional slide"
-        className="
-          absolute right-2.5 sm:right-4 lg:right-6 top-1/2 z-20
-          flex h-9 w-9 -translate-y-1/2
-          items-center justify-center
-          rounded-full border border-[#E8DFD4]/80
-          bg-white/90 text-[#1A1614] shadow-md
-          transition hover:bg-white hover:shadow-lg
-          focus-visible:outline focus-visible:outline-2
-          focus-visible:outline-[#BF5330]
-          sm:h-11 sm:w-11
-        "
-      >
-        <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
-      </button>
+      {/* Next slide - only shown when more than 1 slide */}
+      {total > 1 && (
+        <button
+          type="button"
+          onClick={goToNext}
+          aria-label="Next promotional slide"
+          className="
+            absolute right-2.5 sm:right-4 lg:right-6 top-1/2 z-20
+            flex h-9 w-9 -translate-y-1/2
+            items-center justify-center
+            rounded-full border border-[#E8DFD4]/80
+            bg-white/90 text-[#1A1614] shadow-md
+            transition hover:bg-white hover:shadow-lg
+            focus-visible:outline focus-visible:outline-2
+            focus-visible:outline-[#BF5330]
+            sm:h-11 sm:w-11
+          "
+        >
+          <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      )}
 
-      {/* Slide indicators */}
-      <div
-        className="
-          absolute bottom-2.5 left-1/2 z-20
-          flex -translate-x-1/2 items-center gap-2
-          rounded-full bg-[#1A1614]/50
-          px-3 py-1.5 shadow-sm backdrop-blur-md
-          sm:bottom-4
-        "
-        role="group"
-        aria-label="Choose promotional slide"
-      >
-        {HERO_SLIDES.map((slide, idx) => {
-          const isActive = idx === currentIndex;
+      {/* Slide indicators - only shown when more than 1 slide */}
+      {total > 1 && (
+        <div
+          className="
+            absolute bottom-2.5 left-1/2 z-20
+            flex -translate-x-1/2 items-center gap-2
+            rounded-full bg-[#1A1614]/50
+            px-3 py-1.5 shadow-sm backdrop-blur-md
+            sm:bottom-4
+          "
+          role="group"
+          aria-label="Choose promotional slide"
+        >
+          {effectiveSlides.map((slide, idx) => {
+            const isActive = idx === currentIndex;
 
-          return (
-            <button
-              key={slide.id}
-              type="button"
-              aria-label={`Go to slide ${idx + 1}`}
-              aria-pressed={isActive}
-              onClick={() => setCurrentIndex(idx)}
-              className={`
-                h-2 rounded-full
-                transition-all duration-300
-                focus-visible:outline focus-visible:outline-2
-                focus-visible:outline-white
-                ${
-                  isActive
-                    ? "w-6 bg-[#BF5330]"
-                    : "w-2 bg-white/60 hover:bg-white"
-                }
-              `}
-            />
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={slide.id}
+                type="button"
+                aria-label={`Go to slide ${idx + 1}`}
+                aria-pressed={isActive}
+                onClick={() => setCurrentIndex(idx)}
+                className={`
+                  h-2 rounded-full
+                  transition-all duration-300
+                  focus-visible:outline focus-visible:outline-2
+                  focus-visible:outline-white
+                  ${
+                    isActive
+                      ? "w-6 bg-[#BF5330]"
+                      : "w-2 bg-white/60 hover:bg-white"
+                  }
+                `}
+              />
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

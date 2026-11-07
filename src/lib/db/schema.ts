@@ -648,3 +648,27 @@ export const orderCounters = pgTable(
     updatedAt: updatedAt(),
   },
 );
+
+/* --------------------------- Combo Offers --------------------------------- */
+
+export const comboOffers = pgTable(
+  "combo_offers",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    desktopImageUrl: text("desktop_image_url").notNull(),
+    mobileImageUrl: text("mobile_image_url").notNull(),
+    destinationUrl: text("destination_url").notNull().default("/combo-offers"),
+    displayOrder: integer("display_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("combo_offers_active_order_idx").on(t.isActive, t.displayOrder),
+  ],
+);
+
+export type ComboOffer = typeof comboOffers.$inferSelect;
+export type NewComboOffer = typeof comboOffers.$inferInsert;
+

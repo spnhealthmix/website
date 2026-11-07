@@ -109,3 +109,20 @@ export const publicBusinessInfo = (req: Request, deps: PublicDeps) =>
     };
   });
 
+export const publicComboOffers = (req: Request, deps: PublicDeps) =>
+  publicGet(deps, req, async (db) => {
+    const { getActiveComboOffers } = await import("../combo-offers/service");
+    const rows = await getActiveComboOffers(db);
+    return {
+      comboOffers: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        desktopImageUrl: r.desktopImageUrl,
+        mobileImageUrl: r.mobileImageUrl,
+        destinationUrl: r.destinationUrl,
+        displayOrder: r.displayOrder,
+      })),
+    };
+  });
+
+

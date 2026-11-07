@@ -10,7 +10,7 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react";
-import { fetchBestsellerProducts, fetchCategories, fetchProducts } from "@/lib/storefront/api";
+import { fetchActiveComboOffers, fetchBestsellerProducts, fetchCategories, fetchProducts } from "@/lib/storefront/api";
 import { CategoryBento, CategoryBentoSkeleton } from "@/components/catalogue/category-bento";
 import { FeaturedProductsFilter } from "@/components/catalogue/featured-products-filter";
 import { ProductGridSkeleton } from "@/components/catalogue/product-grid";
@@ -40,15 +40,24 @@ async function CategoriesSection() {
 }
 
 export default async function HomePage() {
-  const [{ categories }, { total: totalProducts }] = await Promise.all([
+  const [comboOffers, { categories }, { total: totalProducts }] = await Promise.all([
+    fetchActiveComboOffers(),
     fetchCategories(),
     fetchProducts({ limit: 1 }),
   ]);
 
+  const dynamicSlides = comboOffers.map((offer) => ({
+    id: offer.id,
+    portraitSrc: offer.mobileImageUrl,
+    desktopSrc: offer.desktopImageUrl,
+    alt: offer.name,
+    href: offer.destinationUrl || "/combo-offers",
+  }));
+
   return (
     <div className="flex flex-col bg-[#FFFBF7]">
       {/* ── Section 1: Full-Width Auto-sliding Hero Carousel ─────────────────── */}
-      <HeroSlider />
+      <HeroSlider slides={dynamicSlides} />
 
       {/* ── Section 2: Continuous Running Benefits Ticker ──────────────────── */}
       <section

@@ -139,6 +139,20 @@ export async function dispatchAdminRequest(
     if (method === "PATCH" || method === "POST") return api.adminUpdateBusinessSettingsH(req, deps);
   }
 
+  // Combo Offers
+  if (path === "/api/admin/combo-offers") {
+    if (method === "GET") return api.adminListComboOffers(req, deps);
+    if (method === "POST") return api.adminCreateComboOffer(req, deps);
+  }
+  if (path === "/api/admin/combo-offers/upload" && method === "POST") {
+    return api.adminUploadComboOfferImage(req, deps);
+  }
+  if ((m = path.match(/^\/api\/admin\/combo-offers\/([^/]+)$/))) {
+    if (method === "GET") return api.adminGetComboOffer(req, deps, m[1]);
+    if (method === "PATCH") return api.adminUpdateComboOffer(req, deps, m[1]);
+    if (method === "DELETE") return api.adminDeleteComboOffer(req, deps, m[1]);
+  }
+
   return null;
 }
 

@@ -43,6 +43,13 @@
       "when": 1793098180977,
       "tag": "0005_bright_brood",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793880955512,
+      "tag": "0006_regular_shiva",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,7 @@ import {
   LogOut,
   Menu,
   X,
+  Sparkles,
 } from "lucide-react";
 
 type AdminProfile = {
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/admin/products", label: "Products", exact: false, icon: Package },
   { href: "/admin/categories", label: "Categories", exact: false, icon: Tag },
   { href: "/admin/orders", label: "Orders", exact: false, icon: ClipboardList },
+  { href: "/admin/combo-offers", label: "Combo Offers", exact: false, icon: Sparkles },
   { href: "/admin/offers", label: "Offers", exact: false, icon: Percent },
   { href: "/admin/coupons", label: "Coupons", exact: false, icon: Ticket },
   { href: "/admin/reviews", label: "Reviews", exact: false, icon: Star },
