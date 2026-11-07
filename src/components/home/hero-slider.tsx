@@ -22,32 +22,32 @@ export const HERO_SLIDES: HeroSlide[] = [
     portraitSrc: "/hero1.jpeg",
     desktopSrc: "/hero1.jpeg",
     alt: "SPN Health Mix Diwali Special Family Combo Offer",
-    href: "/combo-offers",
+    href: "/combo-offers/family-combo-offer",
   },
   {
     id: 2,
     portraitSrc: "/hero2.jpeg",
     desktopSrc: "/hero2.jpeg",
     alt: "SPN Health Mix Diwali Special Sweet Laddu's Combo Offer",
-    href: "/combo-offers",
+    href: "/combo-offers/sweet-laddus-combo",
   },
   {
     id: 3,
     portraitSrc: "/hero3.jpeg",
     desktopSrc: "/hero3.jpeg",
     alt: "SPN Health Mix Diwali Special Spicy Podi Varieties Combo Offer",
-    href: "/combo-offers",
+    href: "/combo-offers/spicy-podi-varieties-combo",
   },
   {
     id: 4,
     portraitSrc: "/hero4.jpeg",
     desktopSrc: "/hero4.jpeg",
     alt: "SPN Health Mix Diwali Special Nendram Banana Chips Offer",
-    href: "/combo-offers",
+    href: "/combo-offers/nendram-banana-chips",
   },
 ];
 
-const AUTO_SLIDE_INTERVAL = 4500;
+const AUTO_SLIDE_INTERVAL = 2500;
 const HEADER_HEIGHT_PX = 64;
 
 export function HeroSlider({ slides }: HeroSliderProps = {}) {

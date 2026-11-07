@@ -1,9 +1,9 @@
 "use client";
 
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { ShoppingCart, Loader2, Plus, Minus, ArrowRight, Sparkles, Truck } from "lucide-react";
+import { ShoppingCart, Loader2, Plus, Minus, ArrowRight, Sparkles, Truck, CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/cart-context";
 import { FALLBACK_COMBO_DATA, type ComboOfferItem } from "@/lib/storefront/api";
 
@@ -125,7 +125,7 @@ function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps)
           </button>
         ) : (
           <div
-            className="w-full h-[42px] rounded-[6px] bg-[#BF5330] text-white flex items-center justify-between px-3 shadow-xs select-none"
+            className="flex items-center justify-between w-full h-[42px] rounded-[6px] bg-[#BF5330] px-2 shadow-xs"
             role="group"
             aria-label={`Quantity in cart for ${product.name}`}
           >
@@ -166,19 +166,151 @@ function AddToCartControl({ product, selectedVariantId }: AddToCartControlProps)
   );
 }
 
+function ComboCard({ offer }: { offer: ComboOfferItem }) {
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(() => {
+    return offer.variants[0]?.id || "";
+  });
+
+  const imageSrc = offer.imageUrl || offer.desktopImageUrl || "/hero1.jpeg";
+  const badge = offer.offerBadge || "Special Offer";
+  const badgeColorClass =
+    badge.toLowerCase().includes("saver")
+      ? "bg-[#BF5330] text-white"
+      : badge.toLowerCase().includes("festive") || badge.toLowerCase().includes("moving")
+      ? "bg-[#C99A3B] text-white"
+      : badge.toLowerCase().includes("crispy")
+      ? "bg-[#824629] text-white"
+      : "bg-[#56634A] text-white";
+
+  return (
+    <article className="flex flex-col bg-white rounded-[16px] lg:rounded-[20px] overflow-hidden border border-[#E8DFD4] shadow-xs hover:shadow-sm hover:border-[#D6C7BA] transition-all duration-200">
+      {/* Poster Image */}
+      <Link href={`/combo-offers/${offer.slug}`} className="relative aspect-[4/3] w-full bg-[#FAF5EE] overflow-hidden group">
+        <Image
+          src={imageSrc}
+          alt={offer.name}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+          className="object-contain bg-[#1A1614]/5 group-hover:scale-[1.02] transition-transform duration-300"
+        />
+        <div className={`absolute top-4 left-4 ${badgeColorClass} font-bold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-[6px] shadow-xs`}>
+          {badge}
+        </div>
+      </Link>
+
+      <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
+        <div>
+          {/* Header Title & Package Label */}
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-[family-name:var(--font-heading)] text-xl sm:text-2xl font-bold text-[#1A1614]">
+              <Link href={`/combo-offers/${offer.slug}`} className="hover:text-[#BF5330] transition-colors">
+                {offer.name}
+              </Link>
+            </h2>
+            {offer.packageLabel && (
+              <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2.5 py-1 text-[11px] font-bold text-[#BF5330] whitespace-nowrap">
+                {offer.packageLabel}
+              </span>
+            )}
+          </div>
+
+          {/* Short Description */}
+          {offer.shortDescription && (
+            <p className="mt-2 text-sm text-[#4A3B32] leading-relaxed">
+              {offer.shortDescription}
+            </p>
+          )}
+
+          {/* Multi-variant selector (e.g. for Chips 250g, 500g, 1kg) */}
+          {offer.variants.length > 1 && (
+            <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
+                Choose Pack Size:
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {offer.variants.map((v) => {
+                  const isSelected = selectedVariantId === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setSelectedVariantId(v.id)}
+                      className={`h-9 px-2 rounded-[6px] flex items-center justify-center text-center font-[family-name:var(--font-body)] text-xs sm:text-[13px] transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? "bg-[#FDF3EE] border-2 border-[#BF5330] text-[#BF5330] font-semibold shadow-2xs"
+                          : "bg-white text-[#1A1614] border border-[#E8DFD4] hover:border-[#BF5330]/50 hover:bg-[#FAF5EE] font-medium"
+                      }`}
+                    >
+                      <span>{v.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Included Products / Highlights */}
+          {offer.items && offer.items.length > 0 ? (
+            <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
+                What&apos;s Inside ({offer.items.length} items):
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium max-h-36 overflow-y-auto pr-1">
+                {offer.items.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center justify-between gap-1 text-[11px]"
+                  >
+                    <span className="truncate">{item.itemTitle}</span>
+                    {item.unit && (
+                      <span className="text-[#7A6E65] text-[10px] shrink-0 font-semibold">{item.unit}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : offer.packageHighlights && offer.packageHighlights.length > 0 ? (
+            <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
+                Package Highlights
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium">
+                {offer.packageHighlights.map((hl, i) => (
+                  <div key={i} className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
+                    <span className="text-[#247B49] font-bold">✓</span> {hl}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Pricing, Add To Cart, and View Details */}
+        <div className="mt-6 space-y-3">
+          <AddToCartControl
+            product={offer}
+            selectedVariantId={selectedVariantId || offer.variants[0]?.id || ""}
+          />
+          <div className="pt-2 text-center">
+            <Link
+              href={`/combo-offers/${offer.slug}`}
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#BF5330] hover:text-[#8F3E20] transition-colors"
+            >
+              View Full Offer Details <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export function ComboOffersView({
   comboData,
 }: {
   comboData: Record<string, ComboOfferItem>;
 }) {
-  const familyCombo = comboData["family-combo-offer"] ?? FALLBACK_COMBO_DATA["family-combo-offer"];
-  const sweetLaddus = comboData["sweet-laddus-combo"] ?? FALLBACK_COMBO_DATA["sweet-laddus-combo"];
-  const spicyPodi = comboData["spicy-podi-varieties-combo"] ?? FALLBACK_COMBO_DATA["spicy-podi-varieties-combo"];
-  const bananaChips = comboData["nendram-banana-chips"] ?? FALLBACK_COMBO_DATA["nendram-banana-chips"];
-
-  const [selectedChipsVariantId, setSelectedChipsVariantId] = useState<string>(() => {
-    return bananaChips?.variants[0]?.id || "";
-  });
+  const offersList = Object.values(comboData).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
   return (
     <div className="min-h-screen bg-[#FFFBF7] py-10 sm:py-16">
@@ -205,267 +337,11 @@ export function ComboOffersView({
           </div>
         </div>
 
-        {/* 4 Cards Grid */}
+        {/* Dynamic Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
-          {/* Card 1: Family Combo Offer */}
-          <article className="flex flex-col bg-white rounded-[16px] lg:rounded-[20px] overflow-hidden border border-[#E8DFD4] shadow-xs hover:shadow-sm hover:border-[#D6C7BA] transition-all duration-200">
-            <div className="relative aspect-[4/3] w-full bg-[#FAF5EE] overflow-hidden">
-              <Image
-                src="/hero1.jpeg"
-                alt="Family Combo Offer poster showcasing 12 traditional food products for ₹999 with original MRP of ₹1,599"
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
-                className="object-contain bg-[#1A1614]/5 hover:scale-[1.01] transition-transform duration-300"
-              />
-              <div className="absolute top-4 left-4 bg-[#BF5330] text-white font-bold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-[6px] shadow-xs">
-                Super Saver
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="font-[family-name:var(--font-heading)] text-xl sm:text-2xl font-bold text-[#1A1614]">
-                    Family Combo Offer
-                  </h2>
-                  <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2.5 py-1 text-[11px] font-bold text-[#BF5330] whitespace-nowrap">
-                    12-in-1 Pack
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-[#4A3B32] leading-relaxed">
-                  Comprehensive mega saver pack featuring 12 traditional wholesome essentials for the whole family: health mixes, authentic podis, and handcrafted delights.
-                </p>
-
-                <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
-                    Package Highlights
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium">
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
-                      <span className="text-[#247B49] font-bold">✓</span> Traditional Health Mix
-                    </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
-                      <span className="text-[#247B49] font-bold">✓</span> Homemade Podi Varieties
-                    </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
-                      <span className="text-[#247B49] font-bold">✓</span> Nutrient-Dense Laddus
-                    </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 flex items-center gap-1.5">
-                      <span className="text-[#247B49] font-bold">✓</span> Pure Native Ingredients
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                {familyCombo && (
-                  <AddToCartControl
-                    product={familyCombo}
-                    selectedVariantId={familyCombo.variants[0]?.id || ""}
-                  />
-                )}
-              </div>
-            </div>
-          </article>
-
-          {/* Card 2: Sweet Laddu's Combo */}
-          <article className="flex flex-col bg-white rounded-[16px] lg:rounded-[20px] overflow-hidden border border-[#E8DFD4] shadow-xs hover:shadow-sm hover:border-[#D6C7BA] transition-all duration-200">
-            <div className="relative aspect-[4/3] w-full bg-[#FAF5EE] overflow-hidden">
-              <Image
-                src="/hero2.jpeg"
-                alt="Fast Moving Sweet Laddu's Combo poster featuring Kadalai Urundai, Ellu Urundai, Rava Laddu, and Karuppu Kavuni Laddu for ₹499"
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
-                className="object-contain bg-[#1A1614]/5 hover:scale-[1.01] transition-transform duration-300"
-              />
-              <div className="absolute top-4 left-4 bg-[#C99A3B] text-white font-bold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-[6px] shadow-xs">
-                Fast Moving
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="font-[family-name:var(--font-heading)] text-xl sm:text-2xl font-bold text-[#1A1614]">
-                    Fast Moving Sweet Laddu&apos;s Combo
-                  </h2>
-                  <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2.5 py-1 text-[11px] font-bold text-[#C99A3B] whitespace-nowrap">
-                    4 Packs (1 kg total)
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-[#4A3B32] leading-relaxed">
-                  Four signature South Indian traditional laddus prepared with natural jaggery and pure native ingredients.
-                </p>
-
-                <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
-                    What&apos;s Inside (250g each):
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-[#4A3B32] font-medium">
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
-                      Kadalai Urundai (250 g)
-                    </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
-                      Ellu Urundai (250 g)
-                    </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
-                      Rava Laddu (250 g)
-                    </div>
-                    <div className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center flex items-center justify-center">
-                      Karuppu Kavuni Laddu (250 g)
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                {sweetLaddus && (
-                  <AddToCartControl
-                    product={sweetLaddus}
-                    selectedVariantId={sweetLaddus.variants[0]?.id || ""}
-                  />
-                )}
-              </div>
-            </div>
-          </article>
-
-          {/* Card 3: Spicy Podi Varieties Combo */}
-          <article className="flex flex-col bg-white rounded-[16px] lg:rounded-[20px] overflow-hidden border border-[#E8DFD4] shadow-xs hover:shadow-sm hover:border-[#D6C7BA] transition-all duration-200">
-            <div className="relative aspect-[4/3] w-full bg-[#FAF5EE] overflow-hidden">
-              <Image
-                src="/hero3.jpeg"
-                alt="Spicy Podi Varieties Combo poster featuring 6 traditional rice and idli podis for ₹349"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
-                className="object-contain bg-[#1A1614]/5 hover:scale-[1.01] transition-transform duration-300"
-              />
-              <div className="absolute top-4 left-4 bg-[#56634A] text-white font-bold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-[6px] shadow-xs">
-                Authentic Taste
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="font-[family-name:var(--font-heading)] text-xl sm:text-2xl font-bold text-[#1A1614]">
-                    Spicy Podi Varieties Combo
-                  </h2>
-                  <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2.5 py-1 text-[11px] font-bold text-[#56634A] whitespace-nowrap">
-                    6 Varieties (300g total)
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-[#4A3B32] leading-relaxed">
-                  Six aromatic, traditionally roasted spice powders made with pure native herbs and lentils. Perfect with warm rice and ghee or soft idlis.
-                </p>
-
-                <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
-                    Included Flavours (50g each):
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-[#4A3B32] font-medium">
-                    <span className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center">
-                      Paruppu Podi
-                    </span>
-                    <span className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center">
-                      Idli Podi
-                    </span>
-                    <span className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center">
-                      Poondu Podi
-                    </span>
-                    <span className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center">
-                      Puliyodharai Podi
-                    </span>
-                    <span className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center">
-                      Karuveppilai Podi
-                    </span>
-                    <span className="rounded-[8px] bg-white border border-[#E8DFD4] p-2 text-center">
-                      Murungai Leaves
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                {spicyPodi && (
-                  <AddToCartControl
-                    product={spicyPodi}
-                    selectedVariantId={spicyPodi.variants[0]?.id || ""}
-                  />
-                )}
-              </div>
-            </div>
-          </article>
-
-          {/* Card 4: Nendram Banana Chips */}
-          <article className="flex flex-col bg-white rounded-[16px] lg:rounded-[20px] overflow-hidden border border-[#E8DFD4] shadow-xs hover:shadow-sm hover:border-[#D6C7BA] transition-all duration-200">
-            <div className="relative aspect-[4/3] w-full bg-[#FAF5EE] overflow-hidden">
-              <Image
-                src="/hero4.jpeg"
-                alt="Crispy Kerala Nendram Banana Chips promotional poster with pricing for 250g, 500g, and 1kg packs"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
-                className="object-contain bg-[#1A1614]/5 hover:scale-[1.01] transition-transform duration-300"
-              />
-              <div className="absolute top-4 left-4 bg-[#824629] text-white font-bold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-[6px] shadow-xs">
-                Crispy & Fresh
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="font-[family-name:var(--font-heading)] text-xl sm:text-2xl font-bold text-[#1A1614]">
-                    Kerala Nendram Banana Chips
-                  </h2>
-                  <span className="rounded-[6px] bg-[#FAF5EE] border border-[#E8DFD4] px-2.5 py-1 text-[11px] font-bold text-[#824629] whitespace-nowrap">
-                    Pure Coconut Oil
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-[#4A3B32] leading-relaxed">
-                  Golden, crispy, wafer-thin banana chips made from premium Nendram bananas sliced and fried to perfection in pure coconut oil with a pinch of rock salt.
-                </p>
-
-                {/* Pack Size Selector */}
-                {bananaChips && bananaChips.variants.length > 0 && (
-                  <div className="mt-4 rounded-[12px] bg-[#FAF5EE]/70 border border-[#E8DFD4] p-4">
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#7A6E65] mb-2 font-[family-name:var(--font-body)]">
-                      Choose Pack Size:
-                    </h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {bananaChips.variants.map((v) => {
-                        const isSelected = (selectedChipsVariantId || bananaChips.variants[0].id) === v.id;
-                        return (
-                          <button
-                            key={v.id}
-                            type="button"
-                            onClick={() => setSelectedChipsVariantId(v.id)}
-                            className={`h-9 px-2 rounded-[6px] flex items-center justify-center text-center font-[family-name:var(--font-body)] text-xs sm:text-[13px] transition-all cursor-pointer select-none ${
-                              isSelected
-                                ? "bg-[#FDF3EE] border-2 border-[#BF5330] text-[#BF5330] font-semibold shadow-2xs"
-                                : "bg-white text-[#1A1614] border border-[#E8DFD4] hover:border-[#BF5330]/50 hover:bg-[#FAF5EE] font-medium"
-                            }`}
-                          >
-                            <span>{v.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6">
-                {bananaChips && (
-                  <AddToCartControl
-                    product={bananaChips}
-                    selectedVariantId={selectedChipsVariantId || bananaChips.variants[0]?.id || ""}
-                  />
-                )}
-              </div>
-            </div>
-          </article>
+          {offersList.map((offer) => (
+            <ComboCard key={offer.id || offer.slug} offer={offer} />
+          ))}
         </div>
 
         {/* Bottom Banner */}

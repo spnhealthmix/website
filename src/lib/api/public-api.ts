@@ -117,12 +117,38 @@ export const publicComboOffers = (req: Request, deps: PublicDeps) =>
       comboOffers: rows.map((r) => ({
         id: r.id,
         name: r.name,
+        slug: r.slug,
+        shortDescription: r.shortDescription,
+        description: r.description,
+        offerBadge: r.offerBadge,
+        packageLabel: r.packageLabel,
+        imageUrl: r.imageUrl,
         desktopImageUrl: r.desktopImageUrl,
         mobileImageUrl: r.mobileImageUrl,
         destinationUrl: r.destinationUrl,
+        pricePaise: r.pricePaise,
+        mrpPaise: r.mrpPaise,
+        savingsPaise: r.savingsPaise,
+        discountPercentage: r.discountPercentage,
+        stock: r.stock,
+        allowAddToCart: r.allowAddToCart,
+        packageHighlights: r.packageHighlights,
+        variantId: r.variantId,
         displayOrder: r.displayOrder,
+        items: r.items,
       })),
     };
   });
+
+export const publicComboOfferBySlug = (req: Request, deps: PublicDeps, slug: string) =>
+  publicGet(deps, req, async (db) => {
+    const { getComboOfferBySlug } = await import("../combo-offers/service");
+    const row = await getComboOfferBySlug(db, slug);
+    if (!row) {
+      throw new ApiError(404, "NOT_FOUND", "Combo offer not found.");
+    }
+    return row;
+  });
+
 
 

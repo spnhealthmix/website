@@ -656,19 +656,69 @@ export const comboOffers = pgTable(
   {
     id: id(),
     name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    shortDescription: text("short_description"),
+    description: text("description"),
+    offerBadge: text("offer_badge"),
+    packageLabel: text("package_label"),
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    imageUrl: text("image_url"),
     desktopImageUrl: text("desktop_image_url").notNull(),
     mobileImageUrl: text("mobile_image_url").notNull(),
     destinationUrl: text("destination_url").notNull().default("/combo-offers"),
+    pricePaise: integer("price_paise").notNull().default(0),
+    mrpPaise: integer("mrp_paise"),
+    stock: integer("stock").notNull().default(50),
+    allowAddToCart: boolean("allow_add_to_cart").notNull().default(true),
+    packageHighlights: jsonb("package_highlights").$type<string[]>().notNull().default([]),
+    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
     displayOrder: integer("display_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
+    uniqueIndex("combo_offers_slug_uq").on(t.slug),
     index("combo_offers_active_order_idx").on(t.isActive, t.displayOrder),
+    index("combo_offers_category_idx").on(t.categoryId),
   ],
 );
 
+export const comboOfferItems = pgTable(
+  "combo_offer_items",
+  {
+    id: id(),
+    comboOfferId: uuid("combo_offer_id")
+      .notNull()
+      .references(() => comboOffers.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    productVariantId: uuid("product_variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+    itemTitle: text("item_title").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    unit: text("unit"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("combo_offer_items_combo_idx").on(t.comboOfferId),
+    index("combo_offer_items_product_idx").on(t.productId),
+  ],
+);
+
+export const comboOffersRelations = relations(comboOffers, ({ one, many }) => ({
+  category: one(categories, { fields: [comboOffers.categoryId], references: [categories.id] }),
+  variant: one(productVariants, { fields: [comboOffers.variantId], references: [productVariants.id] }),
+  items: many(comboOfferItems),
+}));
+
+export const comboOfferItemsRelations = relations(comboOfferItems, ({ one }) => ({
+  comboOffer: one(comboOffers, { fields: [comboOfferItems.comboOfferId], references: [comboOffers.id] }),
+  product: one(products, { fields: [comboOfferItems.productId], references: [products.id] }),
+  variant: one(productVariants, { fields: [comboOfferItems.productVariantId], references: [productVariants.id] }),
+}));
+
 export type ComboOffer = typeof comboOffers.$inferSelect;
 export type NewComboOffer = typeof comboOffers.$inferInsert;
+export type ComboOfferItemRow = typeof comboOfferItems.$inferSelect;
+export type NewComboOfferItemRow = typeof comboOfferItems.$inferInsert;
 

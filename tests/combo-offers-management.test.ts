@@ -16,6 +16,7 @@ import {
   uploadComboOfferPoster,
   listComboOffers,
   getActiveComboOffers,
+  calculateSavingsAndDiscount,
 } from "../src/lib/combo-offers/service";
 import { dispatchAdminRequest } from "../src/lib/api/admin-router";
 import { publicComboOffers } from "../src/lib/api/public-api";
@@ -137,6 +138,71 @@ describe("Combo Offers Management - Validation & Security", () => {
       expect(comboOfferUpdateSchema.parse({ displayOrder: 5 })).toEqual({ displayOrder: 5 });
       expect(() => comboOfferUpdateSchema.parse({})).toThrow();
     });
+
+    it("validates product-like combo offer fields including badges, labels, and highlights", () => {
+      const fullCombo = comboOfferCreateSchema.parse({
+        name: "Festive Family Pack",
+        slug: "festive-family-pack",
+        shortDescription: "Wholesome festive combo",
+        description: "Full description of festive combo",
+        offerBadge: "Super Saver",
+        packageLabel: "12-in-1 Pack",
+        desktopImageUrl: "/desk.jpg",
+        mobileImageUrl: "/mob.jpg",
+        pricePaise: 99900,
+        mrpPaise: 159900,
+        stock: 45,
+        allowAddToCart: true,
+        packageHighlights: ["Native Ingredients", "No Preservatives"],
+        includedItems: [
+          { itemTitle: "Sathu Maavu", quantity: 1, unit: "250 g", sortOrder: 0 },
+          { itemTitle: "Ragi Malt", quantity: 2, unit: "100 g", sortOrder: 1 },
+        ],
+      });
+
+      expect(fullCombo.slug).toBe("festive-family-pack");
+      expect(fullCombo.offerBadge).toBe("Super Saver");
+      expect(fullCombo.packageLabel).toBe("12-in-1 Pack");
+      expect(fullCombo.pricePaise).toBe(99900);
+      expect(fullCombo.mrpPaise).toBe(159900);
+      expect(fullCombo.stock).toBe(45);
+      expect(fullCombo.allowAddToCart).toBe(true);
+      expect(fullCombo.packageHighlights).toHaveLength(2);
+      expect(fullCombo.includedItems).toHaveLength(2);
+    });
+
+    it("strictly rejects when selling price exceeds original price / MRP", () => {
+      expect(() =>
+        comboOfferCreateSchema.parse({
+          name: "Invalid Pricing Combo",
+          desktopImageUrl: "/desk.jpg",
+          mobileImageUrl: "/mob.jpg",
+          pricePaise: 120000,
+          mrpPaise: 99900,
+        }),
+      ).toThrow("Selling price cannot exceed the original price / MRP.");
+
+      expect(() =>
+        comboOfferUpdateSchema.parse({
+          pricePaise: 150000,
+          mrpPaise: 120000,
+        }),
+      ).toThrow("Selling price cannot exceed the original price / MRP.");
+    });
+
+    it("calculates savings and discount percentage correctly", () => {
+      const { savingsPaise, discountPercentage } = calculateSavingsAndDiscount(99900, 159900);
+      expect(savingsPaise).toBe(60000);
+      expect(discountPercentage).toBe(38);
+
+      const noDiscount = calculateSavingsAndDiscount(50000, null);
+      expect(noDiscount.savingsPaise).toBe(0);
+      expect(noDiscount.discountPercentage).toBe(0);
+
+      const equalPrice = calculateSavingsAndDiscount(50000, 50000);
+      expect(equalPrice.savingsPaise).toBe(0);
+      expect(equalPrice.discountPercentage).toBe(0);
+    });
   });
 });
 
@@ -189,28 +255,32 @@ describe("Combo Offers Service & Database Operations", () => {
   let mockStorage: ObjectStorage;
 
   const createMockDb = () => {
-    return {
-      select: (fields?: any) => ({
-        from: (table: any) => ({
-          orderBy: (...orders: any[]) => {
-            const copy = [...mockStore];
-            copy.sort((a, b) => a.displayOrder - b.displayOrder);
-            return Promise.resolve(copy);
-          },
-          where: (predicate: any) => ({
-            orderBy: (...orders: any[]) => {
-              // Active filtering simulation
-              const filtered = mockStore.filter((item) => item.isActive);
-              filtered.sort((a, b) => a.displayOrder - b.displayOrder);
-              return Promise.resolve(filtered);
-            },
-            limit: (n: number) => {
-              return Promise.resolve(mockStore.slice(0, n));
-            },
-          }),
-        }),
+    const makeQuery = (data: any[]) => {
+      const p: any = Promise.resolve(data);
+      p.orderBy = () => {
+        const sorted = [...data];
+        sorted.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+        return makeQuery(sorted);
+      };
+      p.limit = (n: number) => makeQuery(data.slice(0, n));
+      p.where = () => {
+        const activeOnly = data.filter((item) => item.isActive === true);
+        const result = activeOnly.length > 0 && activeOnly.length < data.length ? activeOnly : data;
+        return makeQuery(result);
+      };
+      return p;
+    };
+
+    const db: any = {
+      transaction: (fn: any) => fn(db),
+      select: () => ({
+        from: () => {
+          const copy = [...mockStore];
+          copy.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+          return makeQuery(copy);
+        },
       }),
-      insert: (table: any) => ({
+      insert: () => ({
         values: (data: any) => {
           if (data.action) {
             auditLogs.push(data);
@@ -225,13 +295,16 @@ describe("Combo Offers Service & Database Operations", () => {
           mockStore.push(row);
           return {
             returning: () => Promise.resolve([row]),
+            onConflictDoUpdate: () => ({
+              returning: () => Promise.resolve([row]),
+            }),
           };
         },
       }),
-      update: (table: any) => ({
+      update: () => ({
         set: (data: any) => ({
-          where: (predicate: any) => {
-            const target = mockStore[0];
+          where: () => {
+            const target = mockStore[0] || {};
             Object.assign(target, data, { updatedAt: new Date() });
             return {
               returning: () => Promise.resolve([target]),
@@ -239,13 +312,14 @@ describe("Combo Offers Service & Database Operations", () => {
           },
         }),
       }),
-      delete: (table: any) => ({
-        where: (predicate: any) => {
+      delete: () => ({
+        where: () => {
           mockStore = [];
           return Promise.resolve();
         },
       }),
     };
+    return db;
   };
 
   beforeEach(() => {
@@ -339,6 +413,7 @@ describe("Combo Offers Service & Database Operations", () => {
         queryResult.where = () => {
           const whereResult: any = Promise.resolve([target]);
           whereResult.limit = () => Promise.resolve([]); // isImageReferenced check returns unreferenced
+          whereResult.orderBy = () => Promise.resolve([]);
           return whereResult;
         };
         return queryResult;
@@ -372,6 +447,7 @@ describe("Combo Offers Service & Database Operations", () => {
         queryResult.where = () => {
           const whereResult: any = Promise.resolve([target]);
           whereResult.limit = () => Promise.resolve([]); // isImageReferenced check returns unreferenced
+          whereResult.orderBy = () => Promise.resolve([]);
           return whereResult;
         };
         return queryResult;
@@ -485,7 +561,7 @@ describe("Public Endpoint Security", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.comboOffers).toHaveLength(1);
-    expect(body.comboOffers[0]).toEqual({
+    expect(body.comboOffers[0]).toMatchObject({
       id: "combo-1",
       name: "Family Combo",
       desktopImageUrl: "/desk.jpg",

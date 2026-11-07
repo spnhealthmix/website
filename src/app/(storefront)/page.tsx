@@ -48,10 +48,15 @@ export default async function HomePage() {
 
   const dynamicSlides = comboOffers.map((offer) => ({
     id: offer.id,
-    portraitSrc: offer.mobileImageUrl,
-    desktopSrc: offer.desktopImageUrl,
+    portraitSrc: offer.mobileImageUrl || "/hero1.jpeg",
+    desktopSrc: offer.desktopImageUrl || "/hero1.jpeg",
     alt: offer.name,
-    href: offer.destinationUrl || "/combo-offers",
+    href:
+      offer.destinationUrl && offer.destinationUrl !== "/combo-offers"
+        ? offer.destinationUrl
+        : offer.slug
+        ? `/combo-offers/${offer.slug}`
+        : "/combo-offers",
   }));
 
   return (
